@@ -1,4 +1,4 @@
-# Tent Rental (Flask + PostgreSQL)
+# Tent Rental For Course DV1703 (Flask + PostgreSQL)
 
 ## Run
 1) Install deps
