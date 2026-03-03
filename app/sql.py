@@ -55,7 +55,13 @@ SELECT
 FROM items i
 LEFT JOIN tents t ON t.item_id = i.id
 LEFT JOIN furnishings f ON f.item_id = i.id
-ORDER BY i.created_at DESC;
+ORDER BY 
+  CASE 
+    WHEN t.item_id IS NOT NULL THEN 1
+    WHEN f.item_id IS NOT NULL THEN 2
+    ELSE 3
+  END,
+  i.created_at DESC;
 """
 
 SQL_AVAILABLE_ITEMS = """
