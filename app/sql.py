@@ -115,6 +115,49 @@ SQL_DELETE_ITEM = """
 DELETE FROM items WHERE id = %s;
 """
 
+SQL_GET_ITEM_FOR_EDIT = """
+SELECT
+  i.id, i.sku, i.display_name, i.status, i.daily_rate, i.created_at,
+  (t.item_id IS NOT NULL) AS is_tent,
+  t.capacity, t.season_rating, t.packed_weight_kg, t.floor_area_m2,
+  t.estimated_build_time_minutes, t.construction_cost, t.deconstruction_cost,
+  (f.item_id IS NOT NULL) AS is_furnishing,
+  f.furnishing_kind, f.weight_kg, f.notes
+FROM items i
+LEFT JOIN tents t ON t.item_id = i.id
+LEFT JOIN furnishings f ON f.item_id = i.id
+WHERE i.id = %s;
+"""
+
+SQL_UPDATE_ITEM_BASE = """
+UPDATE items
+SET sku = %s,
+    display_name = %s,
+    status = %s,
+    daily_rate = %s
+WHERE id = %s;
+"""
+
+SQL_UPDATE_TENT = """
+UPDATE tents
+SET capacity = %s,
+    season_rating = %s,
+    packed_weight_kg = %s,
+    floor_area_m2 = %s,
+    estimated_build_time_minutes = %s,
+    construction_cost = %s,
+    deconstruction_cost = %s
+WHERE item_id = %s;
+"""
+
+SQL_UPDATE_FURNISHING = """
+UPDATE furnishings
+SET furnishing_kind = %s,
+    weight_kg = %s,
+    notes = %s
+WHERE item_id = %s;
+"""
+
 SQL_CREATE_BOOKING = """
 INSERT INTO bookings (customer_id, start_date, end_date, status)
 VALUES (%s, %s, %s, 'pending')

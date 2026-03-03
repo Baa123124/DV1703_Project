@@ -74,12 +74,21 @@
             </td>
 
             <td class="p-3">
-              <form method="post" action="{{ url_for('routes.admin_item_delete', item_id=it.id) }}"
-                    onsubmit="return confirm('Delete this item?');">
-                <button class="rounded-lg bg-rose-600 text-white px-3 py-1.5 text-xs hover:bg-rose-700" type="submit">
-                  Delete
-                </button>
-              </form>
+              <div class="flex items-center gap-2">
+                <a class="rounded-lg border px-3 py-1.5 text-xs hover:bg-slate-50"
+                  href="{{ url_for('routes.admin_item_edit_form', item_id=it.id) }}">
+                  Edit
+                </a>
+
+                <form method="post"
+                      action="{{ url_for('routes.admin_item_delete', item_id=it.id) }}"
+                      onsubmit="return confirm('Delete this item?');">
+                  <button class="rounded-lg bg-rose-600 text-white px-3 py-1.5 text-xs hover:bg-rose-700"
+                          type="submit">
+                    Delete
+                  </button>
+                </form>
+              </div>
             </td>
           </tr>
         {% else %}

@@ -18,7 +18,7 @@ CREATE TABLE users (
   CONSTRAINT chk_user_role CHECK (role IN ('customer','admin'))
 );
 
--- CUSTOMERS (profiles; optional)
+-- CUSTOMERS
 CREATE TABLE customers (
   id SERIAL PRIMARY KEY,
   full_name VARCHAR(200) NOT NULL,
@@ -132,7 +132,7 @@ CREATE INDEX idx_bookings_customer_created ON bookings(customer_id, created_at);
 CREATE INDEX idx_bookings_status ON bookings(status);
 CREATE INDEX idx_bookings_dates ON bookings(start_date, end_date);
 
--- BOOKING_ITEMS (many-to-many)
+-- BOOKING_ITEMS
 CREATE TABLE booking_items (
   booking_id INT NOT NULL REFERENCES bookings(id) ON DELETE CASCADE,
   item_id INT NOT NULL REFERENCES items(id) ON DELETE RESTRICT,
@@ -173,7 +173,7 @@ CREATE TRIGGER prevent_overlap_on_booking_items
 BEFORE INSERT OR UPDATE ON booking_items
 FOR EACH ROW EXECUTE FUNCTION trg_prevent_overlapping_item_booking();
 
--- stored functions:
+-- stored functions
 CREATE OR REPLACE FUNCTION add_tent_item(
   p_sku VARCHAR,
   p_display_name VARCHAR,

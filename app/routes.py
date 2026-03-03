@@ -15,6 +15,8 @@ from .sql import (
     SQL_CREATE_BOOKING, SQL_BOOKING_DETAIL, SQL_BOOKING_DETAIL_FOR_CUSTOMER,
     SQL_BOOKING_ITEMS, SQL_BOOKING_TOTAL, SQL_LIST_ALL_BOOKINGS,
     SQL_CONFIRM_BOOKING, SQL_CANCEL_BOOKING,
+
+    SQL_GET_ITEM_FOR_EDIT, SQL_UPDATE_ITEM_BASE, SQL_UPDATE_TENT, SQL_UPDATE_FURNISHING
 )
 
 bp = Blueprint("routes", __name__)
@@ -307,6 +309,93 @@ def admin_item_delete(item_id: int):
         flash(f"Delete failed: {str(e)}", "error")
 
     return redirect(url_for("routes.admin_items"))
+
+@bp.get("/admin/items/<int:item_id>/edit")
+def admin_item_edit_form(item_id: int):
+    require_admin()
+    item = query(SQL_GET_ITEM_FOR_EDIT, (item_id,), one=True)
+    if not item:
+        flash("Item not found.", "error")
+        return redirect(url_for("routes.admin_items"))
+    return render_template("admin_item_edit.html", item=item, role="admin")
+
+
+@bp.post("/admin/items/<int:item_id>/edit")
+def admin_item_edit_save(item_id: int):
+    require_admin()
+
+    # Base item fields
+    sku = request.form.get("sku", "").strip()
+    display_name = request.form.get("display_name", "").strip()
+    status = request.form.get("status", "").strip()
+    daily_rate = request.form.get("daily_rate", "").strip()
+
+    if not sku or not display_name or daily_rate == "" or status not in ("active", "maintenance", "retired"):
+        flash("Missing/invalid base fields.", "error")
+        return redirect(url_for("routes.admin_item_edit_form", item_id=item_id))
+
+    # Load item to know subtype
+    item = query(SQL_GET_ITEM_FOR_EDIT, (item_id,), one=True)
+    if not item:
+        flash("Item not found.", "error")
+        return redirect(url_for("routes.admin_items"))
+
+    def to_int(val):
+        val = (val or "").strip()
+        return int(val) if val != "" else None
+
+    def to_num(val):
+        val = (val or "").strip()
+        return val if val != "" else None
+
+    def work(cur):
+        # Update base table
+        cur.execute(SQL_UPDATE_ITEM_BASE, (sku, display_name, status, daily_rate, item_id))
+
+        # Update subtype
+        if item["is_tent"]:
+            capacity = to_int(request.form.get("capacity"))
+            season_rating = to_int(request.form.get("season_rating"))
+            packed_weight_kg = to_num(request.form.get("packed_weight_kg"))
+            floor_area_m2 = to_num(request.form.get("floor_area_m2"))
+            estimated_build_time_minutes = to_int(request.form.get("estimated_build_time_minutes"))
+            construction_cost = to_num(request.form.get("construction_cost")) or "0"
+            deconstruction_cost = to_num(request.form.get("deconstruction_cost")) or "0"
+
+            if capacity is None or season_rating is None or estimated_build_time_minutes is None:
+                raise ValueError("Missing required tent fields.")
+
+            cur.execute(
+                SQL_UPDATE_TENT,
+                (
+                    capacity, season_rating, packed_weight_kg, floor_area_m2,
+                    estimated_build_time_minutes, construction_cost, deconstruction_cost,
+                    item_id
+                )
+            )
+
+        elif item["is_furnishing"]:
+            furnishing_kind = request.form.get("furnishing_kind", "").strip()
+            weight_kg = to_num(request.form.get("weight_kg"))
+            notes = request.form.get("notes", "").strip() or None
+
+            if not furnishing_kind:
+                raise ValueError("Missing furnishing_kind.")
+
+            cur.execute(
+                SQL_UPDATE_FURNISHING,
+                (furnishing_kind, weight_kg, notes, item_id)
+            )
+
+        return True
+
+    try:
+        tx(work)
+        flash("Item updated.", "success")
+        return redirect(url_for("routes.admin_items"))
+    except Exception as e:
+        flash(f"Update failed: {str(e)}", "error")
+        return redirect(url_for("routes.admin_item_edit_form", item_id=item_id))
 
 # Booking detail + confirm/cancel
 @bp.get("/bookings/<int:booking_id>")

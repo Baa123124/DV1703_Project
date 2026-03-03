@@ -11,6 +11,9 @@ load_dotenv()
 ADMIN_EMAIL = "karl.wikell@gmail.com"
 ADMIN_PASSWORD = "DV1703"
 
+TEMP_USER_EMAIL = "hej.hej@hej.hej"
+TEMP_USER_PASSWORD = "DV1703"
+
 
 def get_conn() -> psycopg.Connection:
     dsn = os.getenv("DATABASE_URL")
@@ -34,6 +37,56 @@ def upsert_admin(conn: psycopg.Connection) -> int:
             RETURNING id;
             """,
             (ADMIN_EMAIL, pw_hash),
+        )
+        return cur.fetchone()[0]
+
+def upsert_temp_user(conn: psycopg.Connection) -> int:
+    pw_hash = generate_password_hash(TEMP_USER_PASSWORD)
+
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO users (email, password_hash, role)
+            VALUES (%s, %s, 'customer')
+            ON CONFLICT (email)
+            DO UPDATE SET
+              password_hash = EXCLUDED.password_hash,
+              role = 'customer'
+            RETURNING id;
+            """,
+            (TEMP_USER_EMAIL, pw_hash),
+        )
+        return cur.fetchone()[0]
+
+def upsert_customer_for_user(conn, *, user_id: int, full_name: str, email: str, phone: str | None):
+    with conn.cursor() as cur:
+        # If a customer with this email exists
+        cur.execute(
+            """
+            UPDATE customers
+            SET user_id = %s
+            WHERE email = %s AND user_id IS NULL
+            RETURNING id;
+            """,
+            (user_id, email),
+        )
+        row = cur.fetchone()
+        if row:
+            return row[0]
+
+        # Otherwise create a new customer
+        cur.execute(
+            """
+            INSERT INTO customers (full_name, email, phone, user_id)
+            VALUES (%s, %s, %s, %s)
+            ON CONFLICT (email)
+            DO UPDATE SET
+              full_name = EXCLUDED.full_name,
+              phone = EXCLUDED.phone,
+              user_id = EXCLUDED.user_id
+            RETURNING id;
+            """,
+            (full_name, email, phone, user_id),
         )
         return cur.fetchone()[0]
 
@@ -119,6 +172,17 @@ def main():
         with conn.transaction():
             admin_id = upsert_admin(conn)
             print(f"Admin user upserted: id={admin_id}, email={ADMIN_EMAIL}")
+
+            temp_user_id = upsert_temp_user(conn)
+            temp_customer_id = upsert_customer_for_user(
+                conn,
+                user_id=temp_user_id,
+                full_name="Temp Customer",
+                email=TEMP_USER_EMAIL,
+                phone=None
+            )
+            print(f"Customer profile upserted: id={temp_customer_id}, user_id={temp_user_id}")
+            print(f"Temporary user upserted: id={temp_user_id}, email={TEMP_USER_EMAIL}")
 
             # --- Furnishings (from the image) ---
             # Table
