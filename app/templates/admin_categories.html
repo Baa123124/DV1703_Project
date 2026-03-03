@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="bg-white border rounded-xl p-6 shadow-sm">
+  <div class="flex items-center gap-3">
+    <h2 class="text-xl font-semibold">Categories (admin)</h2>
+    <div class="ml-auto flex flex-wrap gap-2">
+      <a class="rounded-lg border px-3 py-2 text-sm hover:bg-slate-50"
+         href="{{ url_for('routes.admin_category_tent_new_form') }}">+ New tent category</a>
+      <a class="rounded-lg border px-3 py-2 text-sm hover:bg-slate-50"
+         href="{{ url_for('routes.admin_category_furn_new_form') }}">+ New furnishing category</a>
+    </div>
+  </div>
+
+  <p class="text-xs text-slate-500 mt-2">
+    Editing a category affects all units in it.
+  </p>
+
+  <div class="overflow-x-auto border rounded-lg mt-4">
+    <table class="min-w-full text-sm">
+      <thead class="bg-slate-50 text-slate-600">
+        <tr>
+          <th class="p-3 text-left">ID</th>
+          <th class="p-3 text-left">Name</th>
+          <th class="p-3 text-left">Type</th>
+          <th class="p-3 text-left">Rate/day</th>
+          <th class="p-3 text-left">Units (active/total)</th>
+          <th class="p-3 text-left">Details</th>
+          <th class="p-3"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in categories %}
+          <tr class="border-t">
+            <td class="p-3">{{ c.id }}</td>
+            <td class="p-3 font-medium">{{ c.display_name }}</td>
+            <td class="p-3">
+              {% if c.is_tent %}
+                <span class="inline-flex rounded-full bg-indigo-50 text-indigo-700 px-2 py-0.5 text-xs">Tent</span>
+              {% else %}
+                <span class="inline-flex rounded-full bg-emerald-50 text-emerald-700 px-2 py-0.5 text-xs">Furnishing</span>
+              {% endif %}
+            </td>
+            <td class="p-3">{{ c.daily_rate }}</td>
+            <td class="p-3">{{ c.active_units or 0 }}/{{ c.total_units }}</td>
+            <td class="p-3 text-slate-700">
+              {% if c.is_tent %}
+                cap {{ c.capacity }}, season {{ c.season_rating }},
+                build {{ c.estimated_build_time_minutes }} min,
+                setup {{ c.construction_cost }}, teardown {{ c.deconstruction_cost }}
+              {% else %}
+                {{ c.furnishing_kind }}
+              {% endif %}
+            </td>
+            <td class="p-3">
+              <a class="rounded-lg border px-3 py-1.5 text-xs hover:bg-slate-50"
+                 href="{{ url_for('routes.admin_category_edit_form', category_id=c.id) }}">
+                Edit
+              </a>
+            </td>
+          </tr>
+        {% else %}
+          <tr><td class="p-3" colspan="7"><i>No categories yet.</i></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

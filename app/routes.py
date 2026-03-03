@@ -6,17 +6,24 @@ from .sql import (
     SQL_LIST_CUSTOMERS, SQL_GET_CUSTOMER, SQL_GET_CUSTOMER_BY_USER_ID, SQL_CREATE_CUSTOMER,
     SQL_LIST_BOOKINGS_FOR_CUSTOMER,
 
-    # items
-    SQL_LIST_ITEMS, SQL_AVAILABLE_ITEMS,
-    SQL_ADD_TENT_ITEM, SQL_ADD_FURNISHING_ITEM,
+    # booking (A1)
+    SQL_AVAILABLE_CATEGORIES, SQL_CREATE_BOOKING_WITH_ALLOCATIONS,
+
+    # units
+    SQL_LIST_UNITS, SQL_LIST_CATEGORIES_FOR_DROPDOWN,
+    SQL_GET_UNIT_FOR_EDIT, SQL_UPDATE_UNIT,
+    SQL_ADD_ITEM_UNIT,
     SQL_ITEM_HAS_ACTIVE_OR_FUTURE_BOOKING, SQL_DELETE_BOOKING_ITEMS_FOR_ITEM, SQL_DELETE_ITEM,
 
-    # bookings
-    SQL_CREATE_BOOKING, SQL_BOOKING_DETAIL, SQL_BOOKING_DETAIL_FOR_CUSTOMER,
+    # categories
+    SQL_LIST_CATEGORIES, SQL_GET_CATEGORY_FOR_EDIT,
+    SQL_CREATE_CATEGORY, SQL_CREATE_TENT_CATEGORY_ROW, SQL_CREATE_FURN_CATEGORY_ROW,
+    SQL_UPDATE_CATEGORY_BASE, SQL_UPDATE_TENT_CATEGORY, SQL_UPDATE_FURN_CATEGORY,
+
+    # booking details
+    SQL_BOOKING_DETAIL, SQL_BOOKING_DETAIL_FOR_CUSTOMER,
     SQL_BOOKING_ITEMS, SQL_BOOKING_TOTAL, SQL_LIST_ALL_BOOKINGS,
     SQL_CONFIRM_BOOKING, SQL_CANCEL_BOOKING,
-
-    SQL_GET_ITEM_FOR_EDIT, SQL_UPDATE_ITEM_BASE, SQL_UPDATE_TENT, SQL_UPDATE_FURNISHING
 )
 
 bp = Blueprint("routes", __name__)
@@ -38,19 +45,18 @@ def require_admin():
         abort(403)
     return uid, role
 
-# Home: search + select items + place booking
+# --- Home (category availability) ---
 @bp.get("/")
 def home():
     uid, role = current_user()
-
     start = request.args.get("start_date", "")
     end = request.args.get("end_date", "")
-    items = None
+
+    categories = None
     customers = None
 
     if start and end:
-        items = query(SQL_AVAILABLE_ITEMS, (start, end))
-
+        categories = query(SQL_AVAILABLE_CATEGORIES, (start, end))
         if role == "admin":
             customers = query(SQL_LIST_CUSTOMERS)
         elif role == "customer" and uid:
@@ -62,11 +68,12 @@ def home():
         "home.html",
         start_date=start,
         end_date=end,
-        items=items,
+        categories=categories,
         customers=customers,
         role=role
     )
 
+# --- Booking create (A1 function) ---
 @bp.post("/bookings/create")
 def booking_create_from_home():
     uid, role = require_login()
@@ -76,17 +83,11 @@ def booking_create_from_home():
 
     start = request.form.get("start_date", "").strip()
     end = request.form.get("end_date", "").strip()
-    item_ids = request.form.getlist("item_ids")
-
     if not start or not end:
         flash("Choose dates first.", "error")
         return redirect(url_for("routes.home"))
 
-    if not item_ids:
-        flash("Select at least one item.", "error")
-        return redirect(url_for("routes.home", start_date=start, end_date=end))
-
-    # Resolve customer_id
+    # customer_id
     if role == "admin":
         customer_id = request.form.get("customer_id", "").strip()
         if not customer_id:
@@ -99,53 +100,40 @@ def booking_create_from_home():
             return redirect(url_for("routes.home", start_date=start, end_date=end))
         customer_id = str(cust["id"])
 
+    # parse qty_<catid>
+    selections = []
+    for k, v in request.form.items():
+        if k.startswith("qty_"):
+            try:
+                cat_id = int(k.split("_", 1)[1])
+                qty = int(v) if v.strip() else 0
+            except Exception:
+                continue
+            if qty > 0:
+                selections.append((cat_id, qty))
+
+    if not selections:
+        flash("Select at least one category quantity.", "error")
+        return redirect(url_for("routes.home", start_date=start, end_date=end))
+
+    category_ids = [cid for cid, _ in selections]
+    qtys = [q for _, q in selections]
+
     try:
-        item_ids_int = sorted({int(x) for x in item_ids})
-    except ValueError:
-        flash("Invalid item selection.", "error")
-        return redirect(url_for("routes.home", start_date=start, end_date=end))
-
-    available = query(SQL_AVAILABLE_ITEMS, (start, end))
-    avail_ids = {row["id"] for row in available}
-    if any(iid not in avail_ids for iid in item_ids_int):
-        flash("Some selected items are no longer available. Please search again.", "error")
-        return redirect(url_for("routes.home", start_date=start, end_date=end))
-
-    def work(cur):
-        # Lock item rows for reducing race conditions
-        placeholders = ",".join(["%s"] * len(item_ids_int))
-        cur.execute(
-            f"SELECT id FROM items WHERE id IN ({placeholders}) ORDER BY id FOR UPDATE;",
-            tuple(item_ids_int),
+        row = query(
+            SQL_CREATE_BOOKING_WITH_ALLOCATIONS,
+            (customer_id, start, end, category_ids, qtys),
+            one=True,
+            commit=True
         )
-
-        # Create booking header
-        cur.execute(SQL_CREATE_BOOKING, (customer_id, start, end))
-        booking_id = cur.fetchone()["id"]
-
-        # Add booking_items lines
-        for iid in item_ids_int:
-            cur.execute(
-                """
-                INSERT INTO booking_items (booking_id, item_id, price_per_day)
-                SELECT %s, i.id, i.daily_rate
-                FROM items i
-                WHERE i.id = %s;
-                """,
-                (booking_id, iid),
-            )
-
-        return booking_id
-
-    try:
-        booking_id = tx(work)
+        booking_id = row["booking_id"]
         flash(f"Booking created (id={booking_id}).", "success")
         return redirect(url_for("routes.booking_detail", booking_id=booking_id))
     except Exception as e:
         flash(f"Could not place booking: {str(e)}", "error")
         return redirect(url_for("routes.home", start_date=start, end_date=end))
 
-# Customers
+# --- Customers ---
 @bp.get("/customers")
 def customers():
     uid, role = require_login()
@@ -155,7 +143,6 @@ def customers():
     if role == "admin":
         return render_template("customers.html", customers=query(SQL_LIST_CUSTOMERS), role=role)
 
-    # customer: goes to own customer detail directly
     cust = query(SQL_GET_CUSTOMER_BY_USER_ID, (uid,), one=True)
     if not cust:
         flash("No customer profile linked to this account.", "error")
@@ -170,7 +157,6 @@ def customer_new_form():
 @bp.post("/customers/new")
 def customer_new():
     require_admin()
-
     full_name = request.form.get("full_name","").strip()
     email = request.form.get("email","").strip().lower()
     phone = request.form.get("phone","").strip() or None
@@ -205,88 +191,76 @@ def customer_detail(customer_id: int):
     bookings = query(SQL_LIST_BOOKINGS_FOR_CUSTOMER, (customer_id,))
     return render_template("customer_detail.html", customer=cust, bookings=bookings, role=role)
 
-# Admin: Bookings list
+# --- Admin: Bookings list ---
 @bp.get("/admin/bookings")
 def admin_bookings():
     require_admin()
     bookings = query(SQL_LIST_ALL_BOOKINGS)
     return render_template("admin_bookings.html", bookings=bookings, role="admin")
 
-# Admin: Inventory
+# =========================================================
+# Admin: UNITS (physical items)
+# =========================================================
 @bp.get("/admin/items")
 def admin_items():
     require_admin()
-    return render_template("admin_items.html", items=query(SQL_LIST_ITEMS), role="admin")
+    return render_template("admin_items.html", items=query(SQL_LIST_UNITS), role="admin")
 
-@bp.get("/admin/items/tent/new")
-def admin_tent_new_form():
+@bp.get("/admin/items/unit/new")
+def admin_unit_new_form():
     require_admin()
-    return render_template("admin_tent_new.html", role="admin")
+    categories = query(SQL_LIST_CATEGORIES_FOR_DROPDOWN)
+    return render_template("admin_unit_new.html", categories=categories, role="admin")
 
-@bp.post("/admin/items/tent/new")
-def admin_tent_new():
+@bp.post("/admin/items/unit/new")
+def admin_unit_new():
     require_admin()
+    category_id = request.form.get("category_id", "").strip()
+    sku = request.form.get("sku", "").strip()
+    is_active = (request.form.get("is_active") == "on")
 
-    sku = request.form.get("sku","").strip()
-    display_name = request.form.get("display_name","").strip()
-    daily_rate = request.form.get("daily_rate","").strip()
-    capacity = request.form.get("capacity","").strip()
-    season_rating = request.form.get("season_rating","").strip()
-
-    build_time = request.form.get("estimated_build_time_minutes","").strip() or "10"
-    construction_cost = request.form.get("construction_cost","").strip() or "0"
-    deconstruction_cost = request.form.get("deconstruction_cost","").strip() or "0"
-    packed_weight = request.form.get("packed_weight_kg","").strip() or None
-    floor_area = request.form.get("floor_area_m2","").strip() or None
-
-    if not sku or not display_name or daily_rate=="" or not capacity or not season_rating:
-        flash("Missing required fields.", "error")
-        return redirect(url_for("routes.admin_tent_new_form"))
+    if not category_id or not sku:
+        flash("Category and SKU are required.", "error")
+        return redirect(url_for("routes.admin_unit_new_form"))
 
     try:
-        row = query(SQL_ADD_TENT_ITEM, (
-            sku, display_name, daily_rate,
-            capacity, season_rating,
-            build_time, construction_cost, deconstruction_cost,
-            packed_weight, floor_area
-        ), one=True, commit=True)
-        flash(f"Tent item created (item_id={row['new_item_id']}).", "success")
+        cat_id_int = int(category_id)
+        row = query(SQL_ADD_ITEM_UNIT, (cat_id_int, sku, is_active), one=True, commit=True)
+        flash(f"Unit created (item_id={row['new_item_id']}).", "success")
+        return redirect(url_for("routes.admin_items"))
     except Exception as e:
         flash(f"Failed: {str(e)}", "error")
+        return redirect(url_for("routes.admin_unit_new_form"))
 
-    return redirect(url_for("routes.admin_items"))
-
-@bp.get("/admin/items/furnishing/new")
-def admin_furn_new_form():
+@bp.get("/admin/items/<int:item_id>/edit")
+def admin_unit_edit_form(item_id: int):
     require_admin()
-    return render_template("admin_furn_new.html", role="admin")
+    unit = query(SQL_GET_UNIT_FOR_EDIT, (item_id,), one=True)
+    if not unit:
+        flash("Unit not found.", "error")
+        return redirect(url_for("routes.admin_items"))
+    categories = query(SQL_LIST_CATEGORIES_FOR_DROPDOWN)
+    return render_template("admin_unit_edit.html", unit=unit, categories=categories, role="admin")
 
-@bp.post("/admin/items/furnishing/new")
-def admin_furn_new():
+@bp.post("/admin/items/<int:item_id>/edit")
+def admin_unit_edit_save(item_id: int):
     require_admin()
+    category_id = request.form.get("category_id", "").strip()
+    sku = request.form.get("sku", "").strip()
+    is_active = (request.form.get("is_active") == "on")
 
-    sku = request.form.get("sku","").strip()
-    display_name = request.form.get("display_name","").strip()
-    daily_rate = request.form.get("daily_rate","").strip()
-
-    furnishing_kind = request.form.get("furnishing_kind","").strip()
-    weight_kg = request.form.get("weight_kg","").strip() or None
-    notes = request.form.get("notes","").strip() or None
-
-    if not sku or not display_name or daily_rate=="" or not furnishing_kind:
-        flash("Missing required fields.", "error")
-        return redirect(url_for("routes.admin_furn_new_form"))
+    if not category_id or not sku:
+        flash("Category and SKU are required.", "error")
+        return redirect(url_for("routes.admin_unit_edit_form", item_id=item_id))
 
     try:
-        row = query(SQL_ADD_FURNISHING_ITEM, (
-            sku, display_name, daily_rate,
-            furnishing_kind, weight_kg, notes
-        ), one=True, commit=True)
-        flash(f"Furnishing created (item_id={row['new_item_id']}).", "success")
+        cat_id_int = int(category_id)
+        query(SQL_UPDATE_UNIT, (cat_id_int, sku, is_active, item_id), commit=True)
+        flash("Unit updated.", "success")
+        return redirect(url_for("routes.admin_items"))
     except Exception as e:
-        flash(f"Failed: {str(e)}", "error")
-
-    return redirect(url_for("routes.admin_items"))
+        flash(f"Update failed: {str(e)}", "error")
+        return redirect(url_for("routes.admin_unit_edit_form", item_id=item_id))
 
 @bp.post("/admin/items/<int:item_id>/delete")
 def admin_item_delete(item_id: int):
@@ -294,7 +268,7 @@ def admin_item_delete(item_id: int):
 
     blocked = query(SQL_ITEM_HAS_ACTIVE_OR_FUTURE_BOOKING, (item_id,), one=True)
     if blocked:
-        flash("Cannot delete item: it is booked now or in the future.", "error")
+        flash("Cannot delete unit: it is booked now or in the future.", "error")
         return redirect(url_for("routes.admin_items"))
 
     def work(cur):
@@ -304,100 +278,158 @@ def admin_item_delete(item_id: int):
 
     try:
         tx(work)
-        flash("Item deleted.", "success")
+        flash("Unit deleted.", "success")
     except Exception as e:
         flash(f"Delete failed: {str(e)}", "error")
 
     return redirect(url_for("routes.admin_items"))
 
-@bp.get("/admin/items/<int:item_id>/edit")
-def admin_item_edit_form(item_id: int):
+# =========================================================
+# Admin: CATEGORIES (shared product models)
+# =========================================================
+@bp.get("/admin/categories")
+def admin_categories():
     require_admin()
-    item = query(SQL_GET_ITEM_FOR_EDIT, (item_id,), one=True)
-    if not item:
-        flash("Item not found.", "error")
-        return redirect(url_for("routes.admin_items"))
-    return render_template("admin_item_edit.html", item=item, role="admin")
+    categories = query(SQL_LIST_CATEGORIES)
+    return render_template("admin_categories.html", categories=categories, role="admin")
 
+@bp.get("/admin/categories/tent/new")
+def admin_category_tent_new_form():
+    require_admin()
+    return render_template("admin_category_tent_new.html", role="admin")
 
-@bp.post("/admin/items/<int:item_id>/edit")
-def admin_item_edit_save(item_id: int):
+@bp.post("/admin/categories/tent/new")
+def admin_category_tent_new():
     require_admin()
 
-    # Base item fields
-    sku = request.form.get("sku", "").strip()
-    display_name = request.form.get("display_name", "").strip()
-    status = request.form.get("status", "").strip()
-    daily_rate = request.form.get("daily_rate", "").strip()
+    name = request.form.get("display_name","").strip()
+    daily_rate = request.form.get("daily_rate","").strip()
+    capacity = request.form.get("capacity","").strip()
+    season_rating = request.form.get("season_rating","").strip()
+    build_time = request.form.get("estimated_build_time_minutes","").strip() or "10"
+    construction_cost = request.form.get("construction_cost","").strip() or "0"
+    deconstruction_cost = request.form.get("deconstruction_cost","").strip() or "0"
+    packed_weight = request.form.get("packed_weight_kg","").strip() or None
+    floor_area = request.form.get("floor_area_m2","").strip() or None
 
-    if not sku or not display_name or daily_rate == "" or status not in ("active", "maintenance", "retired"):
-        flash("Missing/invalid base fields.", "error")
-        return redirect(url_for("routes.admin_item_edit_form", item_id=item_id))
-
-    # Load item to know subtype
-    item = query(SQL_GET_ITEM_FOR_EDIT, (item_id,), one=True)
-    if not item:
-        flash("Item not found.", "error")
-        return redirect(url_for("routes.admin_items"))
-
-    def to_int(val):
-        val = (val or "").strip()
-        return int(val) if val != "" else None
-
-    def to_num(val):
-        val = (val or "").strip()
-        return val if val != "" else None
+    if not name or daily_rate=="" or not capacity or not season_rating:
+        flash("Missing required fields.", "error")
+        return redirect(url_for("routes.admin_category_tent_new_form"))
 
     def work(cur):
-        # Update base table
-        cur.execute(SQL_UPDATE_ITEM_BASE, (sku, display_name, status, daily_rate, item_id))
+        cur.execute(SQL_CREATE_CATEGORY, (name, daily_rate))
+        cat_id = cur.fetchone()["id"]
+        cur.execute(SQL_CREATE_TENT_CATEGORY_ROW, (
+            cat_id, capacity, season_rating, packed_weight, floor_area,
+            build_time, construction_cost, deconstruction_cost
+        ))
+        return cat_id
 
-        # Update subtype
-        if item["is_tent"]:
+    try:
+        cat_id = tx(work)
+        flash(f"Tent category created (id={cat_id}).", "success")
+        return redirect(url_for("routes.admin_categories"))
+    except Exception as e:
+        flash(f"Failed: {str(e)}", "error")
+        return redirect(url_for("routes.admin_category_tent_new_form"))
+
+@bp.get("/admin/categories/furnishing/new")
+def admin_category_furn_new_form():
+    require_admin()
+    return render_template("admin_category_furn_new.html", role="admin")
+
+@bp.post("/admin/categories/furnishing/new")
+def admin_category_furn_new():
+    require_admin()
+
+    name = request.form.get("display_name","").strip()
+    daily_rate = request.form.get("daily_rate","").strip()
+    kind = request.form.get("furnishing_kind","").strip()
+    weight_kg = request.form.get("weight_kg","").strip() or None
+    notes = request.form.get("notes","").strip() or None
+
+    if not name or daily_rate=="" or not kind:
+        flash("Missing required fields.", "error")
+        return redirect(url_for("routes.admin_category_furn_new_form"))
+
+    def work(cur):
+        cur.execute(SQL_CREATE_CATEGORY, (name, daily_rate))
+        cat_id = cur.fetchone()["id"]
+        cur.execute(SQL_CREATE_FURN_CATEGORY_ROW, (cat_id, kind, weight_kg, notes))
+        return cat_id
+
+    try:
+        cat_id = tx(work)
+        flash(f"Furnishing category created (id={cat_id}).", "success")
+        return redirect(url_for("routes.admin_categories"))
+    except Exception as e:
+        flash(f"Failed: {str(e)}", "error")
+        return redirect(url_for("routes.admin_category_furn_new_form"))
+
+@bp.get("/admin/categories/<int:category_id>/edit")
+def admin_category_edit_form(category_id: int):
+    require_admin()
+    cat = query(SQL_GET_CATEGORY_FOR_EDIT, (category_id,), one=True)
+    if not cat:
+        flash("Category not found.", "error")
+        return redirect(url_for("routes.admin_categories"))
+    return render_template("admin_category_edit.html", cat=cat, role="admin")
+
+@bp.post("/admin/categories/<int:category_id>/edit")
+def admin_category_edit_save(category_id: int):
+    require_admin()
+    cat = query(SQL_GET_CATEGORY_FOR_EDIT, (category_id,), one=True)
+    if not cat:
+        flash("Category not found.", "error")
+        return redirect(url_for("routes.admin_categories"))
+
+    display_name = request.form.get("display_name","").strip()
+    daily_rate = request.form.get("daily_rate","").strip()
+    if not display_name or daily_rate == "":
+        flash("Name and daily rate are required.", "error")
+        return redirect(url_for("routes.admin_category_edit_form", category_id=category_id))
+
+    def to_int(v):
+        v = (v or "").strip()
+        return int(v) if v != "" else None
+
+    def to_num(v):
+        v = (v or "").strip()
+        return v if v != "" else None
+
+    def work(cur):
+        cur.execute(SQL_UPDATE_CATEGORY_BASE, (display_name, daily_rate, category_id))
+
+        if cat["is_tent"]:
             capacity = to_int(request.form.get("capacity"))
             season_rating = to_int(request.form.get("season_rating"))
             packed_weight_kg = to_num(request.form.get("packed_weight_kg"))
             floor_area_m2 = to_num(request.form.get("floor_area_m2"))
-            estimated_build_time_minutes = to_int(request.form.get("estimated_build_time_minutes"))
+            build_time = to_int(request.form.get("estimated_build_time_minutes"))
             construction_cost = to_num(request.form.get("construction_cost")) or "0"
             deconstruction_cost = to_num(request.form.get("deconstruction_cost")) or "0"
-
-            if capacity is None or season_rating is None or estimated_build_time_minutes is None:
-                raise ValueError("Missing required tent fields.")
-
-            cur.execute(
-                SQL_UPDATE_TENT,
-                (
-                    capacity, season_rating, packed_weight_kg, floor_area_m2,
-                    estimated_build_time_minutes, construction_cost, deconstruction_cost,
-                    item_id
-                )
-            )
-
-        elif item["is_furnishing"]:
-            furnishing_kind = request.form.get("furnishing_kind", "").strip()
+            cur.execute(SQL_UPDATE_TENT_CATEGORY, (
+                capacity, season_rating, packed_weight_kg, floor_area_m2,
+                build_time, construction_cost, deconstruction_cost,
+                category_id
+            ))
+        else:
+            kind = request.form.get("furnishing_kind","").strip()
             weight_kg = to_num(request.form.get("weight_kg"))
-            notes = request.form.get("notes", "").strip() or None
-
-            if not furnishing_kind:
-                raise ValueError("Missing furnishing_kind.")
-
-            cur.execute(
-                SQL_UPDATE_FURNISHING,
-                (furnishing_kind, weight_kg, notes, item_id)
-            )
+            notes = request.form.get("notes","").strip() or None
+            cur.execute(SQL_UPDATE_FURN_CATEGORY, (kind, weight_kg, notes, category_id))
 
         return True
 
     try:
         tx(work)
-        flash("Item updated.", "success")
-        return redirect(url_for("routes.admin_items"))
+        flash("Category updated.", "success")
+        return redirect(url_for("routes.admin_categories"))
     except Exception as e:
         flash(f"Update failed: {str(e)}", "error")
-        return redirect(url_for("routes.admin_item_edit_form", item_id=item_id))
+        return redirect(url_for("routes.admin_category_edit_form", category_id=category_id))
 
-# Booking detail + confirm/cancel
+# --- Booking detail / status (unchanged) ---
 @bp.get("/bookings/<int:booking_id>")
 def booking_detail(booking_id: int):
     uid, role = require_login()

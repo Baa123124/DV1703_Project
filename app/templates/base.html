@@ -16,6 +16,7 @@
 
         {% if session.get('role') == 'admin' %}
           <a class="text-sm text-slate-700 hover:text-slate-900" href="{{ url_for('routes.admin_items') }}">Items</a>
+          <a class="text-sm text-slate-700 hover:text-slate-900" href="{{ url_for('routes.admin_categories') }}">Categories</a>
           <a class="text-sm text-slate-700 hover:text-slate-900" href="{{ url_for('routes.admin_bookings') }}">Bookings</a>
         {% endif %}
 

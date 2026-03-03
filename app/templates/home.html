@@ -16,12 +16,12 @@
     <p class="text-xs text-slate-500 mt-2">Half-open ranges: [start_date, end_date). Cancelled bookings are ignored.</p>
   </div>
 
-  {% if items is not none %}
+  {% if categories is not none %}
     <div class="bg-white border rounded-xl p-6 shadow-sm mt-6">
-      <h3 class="text-lg font-semibold">Select items</h3>
+      <h3 class="text-lg font-semibold">Select quantities per category</h3>
 
-      {% if items|length == 0 %}
-        <p class="text-sm text-slate-600 mt-2"><i>No items available.</i></p>
+      {% if categories|length == 0 %}
+        <p class="text-sm text-slate-600 mt-2"><i>No categories yet.</i></p>
       {% else %}
         {% if not session.get('user_id') %}
           <p class="text-sm text-slate-600 mt-2">
@@ -36,33 +36,49 @@
               <table class="min-w-full text-sm">
                 <thead class="bg-slate-50 text-slate-600">
                   <tr>
-                    <th class="p-3 text-left">Select</th>
-                    <th class="p-3 text-left">Item</th>
+                    <th class="p-3 text-left">Category</th>
                     <th class="p-3 text-left">Type</th>
                     <th class="p-3 text-left">Rate/day</th>
+                    <th class="p-3 text-left">Available</th>
+                    <th class="p-3 text-left">Qty</th>
                     <th class="p-3 text-left">Details</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {% for it in items %}
+                  {% for c in categories %}
                     <tr class="border-t">
-                      <td class="p-3"><input type="checkbox" name="item_ids" value="{{ it.id }}" class="h-4 w-4"></td>
                       <td class="p-3">
-                        <div class="font-medium">{{ it.display_name }}</div>
-                        <div class="text-xs text-slate-500">{{ it.sku }}</div>
+                        <div class="font-medium">{{ c.display_name }}</div>
+                        <div class="text-xs text-slate-500">Category #{{ c.id }}</div>
                       </td>
                       <td class="p-3">
-                        {% if it.is_tent %}<span class="inline-flex rounded-full bg-indigo-50 text-indigo-700 px-2 py-0.5 text-xs">Tent</span>{% endif %}
-                        {% if it.is_furnishing %}<span class="inline-flex rounded-full bg-emerald-50 text-emerald-700 px-2 py-0.5 text-xs">Furnishing</span>{% endif %}
+                        {% if c.is_tent %}
+                          <span class="inline-flex rounded-full bg-indigo-50 text-indigo-700 px-2 py-0.5 text-xs">Tent</span>
+                        {% endif %}
+                        {% if c.is_furnishing %}
+                          <span class="inline-flex rounded-full bg-emerald-50 text-emerald-700 px-2 py-0.5 text-xs">Furnishing</span>
+                        {% endif %}
                       </td>
-                      <td class="p-3">{{ it.daily_rate }}</td>
+                      <td class="p-3">{{ c.daily_rate }}</td>
+                      <td class="p-3">{{ c.available_units }}</td>
+                      <td class="p-3">
+                        <input
+                          type="number"
+                          min="0"
+                          max="{{ c.available_units }}"
+                          value="0"
+                          name="qty_{{ c.id }}"
+                          {% if c.available_units == 0 %}disabled{% endif %}
+                          class="w-24 rounded-lg border px-3 py-2"
+                        >
+                      </td>
                       <td class="p-3 text-slate-700">
-                        {% if it.is_tent %}
-                          Cap {{ it.capacity }}, Season {{ it.season_rating }},
-                          Build {{ it.estimated_build_time_minutes }} min,
-                          Setup {{ it.construction_cost }}, Teardown {{ it.deconstruction_cost }}
+                        {% if c.is_tent %}
+                          Cap {{ c.capacity }}, Season {{ c.season_rating }},
+                          Build {{ c.estimated_build_time_minutes }} min,
+                          Setup {{ c.construction_cost }}, Teardown {{ c.deconstruction_cost }}
                         {% else %}
-                          {{ it.furnishing_kind }}
+                          {{ c.furnishing_kind }}
                         {% endif %}
                       </td>
                     </tr>
@@ -77,8 +93,8 @@
                   <label class="text-sm font-medium">Customer</label>
                   <select name="customer_id" required class="mt-1 rounded-lg border px-3 py-2 min-w-72">
                     <option value="">-- select --</option>
-                    {% for c in customers %}
-                      <option value="{{ c.id }}">{{ c.full_name }} ({{ c.email }})</option>
+                    {% for cu in customers %}
+                      <option value="{{ cu.id }}">{{ cu.full_name }} ({{ cu.email }})</option>
                     {% endfor %}
                   </select>
                 </div>

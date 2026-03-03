@@ -1,15 +1,14 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="max-w-3xl bg-white border rounded-xl p-6 shadow-sm">
-  <h2 class="text-xl font-semibold">Edit item #{{ item.id }}</h2>
+  <h2 class="text-xl font-semibold">Edit unit #{{ item.id }}</h2>
   <p class="text-sm text-slate-500 mt-1">
-    Type:
-    {% if item.is_tent %}Tent{% elif item.is_furnishing %}Furnishing{% else %}Unknown{% endif %}
+    Category edits affect all units in the same category.
   </p>
 
   <form method="post" class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
     <div class="md:col-span-2">
-      <h3 class="font-medium">Base item</h3>
+      <h3 class="font-medium">Unit (physical item)</h3>
     </div>
 
     <div>
@@ -17,18 +16,19 @@
       <input name="sku" value="{{ item.sku }}" required class="mt-1 w-full rounded-lg border px-3 py-2">
     </div>
 
-    <div>
-      <label class="text-sm font-medium">Display name</label>
-      <input name="display_name" value="{{ item.display_name }}" required class="mt-1 w-full rounded-lg border px-3 py-2">
+    <div class="flex items-center gap-2 mt-6">
+      <input id="is_active" name="is_active" type="checkbox" class="h-4 w-4"
+             {% if item.is_active %}checked{% endif %}>
+      <label for="is_active" class="text-sm font-medium">Active (available for booking)</label>
+    </div>
+
+    <div class="md:col-span-2 mt-2">
+      <h3 class="font-medium">Category (shared model)</h3>
     </div>
 
     <div>
-      <label class="text-sm font-medium">Status</label>
-      <select name="status" required class="mt-1 w-full rounded-lg border px-3 py-2">
-        <option value="active" {% if item.status == 'active' %}selected{% endif %}>active</option>
-        <option value="maintenance" {% if item.status == 'maintenance' %}selected{% endif %}>maintenance</option>
-        <option value="retired" {% if item.status == 'retired' %}selected{% endif %}>retired</option>
-      </select>
+      <label class="text-sm font-medium">Display name</label>
+      <input name="display_name" value="{{ item.display_name }}" required class="mt-1 w-full rounded-lg border px-3 py-2">
     </div>
 
     <div>
@@ -38,7 +38,7 @@
 
     {% if item.is_tent %}
       <div class="md:col-span-2 mt-2">
-        <h3 class="font-medium">Tent details</h3>
+        <h3 class="font-medium">Tent category details</h3>
       </div>
 
       <div>
@@ -78,7 +78,7 @@
 
     {% elif item.is_furnishing %}
       <div class="md:col-span-2 mt-2">
-        <h3 class="font-medium">Furnishing details</h3>
+        <h3 class="font-medium">Furnishing category details</h3>
       </div>
 
       <div>
