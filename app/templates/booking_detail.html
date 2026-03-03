@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="bg-white border rounded-xl p-6 shadow-sm">
+  <div class="flex items-start gap-3">
+    <div>
+      <h2 class="text-xl font-semibold">Booking #{{ booking.id }}</h2>
+      <p class="text-sm text-slate-700 mt-2">
+        <b>Customer:</b> {{ booking.full_name }} ({{ booking.email }})<br>
+        <b>Dates:</b> {{ booking.start_date }} → {{ booking.end_date }}<br>
+        <b>Status:</b> {{ booking.status }}<br>
+        <span class="text-xs text-slate-500">Created: {{ booking.created_at }}</span>
+      </p>
+    </div>
+
+    {% if role == 'admin' %}
+      <div class="ml-auto flex gap-2">
+        <form method="post" action="{{ url_for('routes.booking_confirm', booking_id=booking.id) }}">
+          <button class="rounded-lg border px-3 py-2 text-sm hover:bg-slate-50" type="submit"
+            {% if booking.status == 'cancelled' %}disabled{% endif %}>
+            Confirm
+          </button>
+        </form>
+        <form method="post" action="{{ url_for('routes.booking_cancel', booking_id=booking.id) }}">
+          <button class="rounded-lg bg-rose-600 text-white px-3 py-2 text-sm hover:bg-rose-700" type="submit"
+            {% if booking.status == 'cancelled' %}disabled{% endif %}>
+            Cancel
+          </button>
+        </form>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="bg-white border rounded-xl p-6 shadow-sm mt-6">
+  <h3 class="text-lg font-semibold">Items</h3>
+  <div class="overflow-x-auto border rounded-lg mt-4">
+    <table class="min-w-full text-sm">
+      <thead class="bg-slate-50 text-slate-600">
+        <tr><th class="p-3 text-left">Item</th><th class="p-3 text-left">Type</th><th class="p-3 text-left">Price/day</th><th class="p-3 text-left">Line fees</th></tr>
+      </thead>
+      <tbody>
+        {% for it in items %}
+          <tr class="border-t">
+            <td class="p-3">
+              <div class="font-medium">{{ it.display_name }}</div>
+              <div class="text-xs text-slate-500">{{ it.sku }}</div>
+            </td>
+            <td class="p-3">
+              {% if it.is_tent %}<span class="inline-flex rounded-full bg-indigo-50 text-indigo-700 px-2 py-0.5 text-xs">Tent</span>{% endif %}
+              {% if it.is_furnishing %}<span class="inline-flex rounded-full bg-emerald-50 text-emerald-700 px-2 py-0.5 text-xs">Furnishing</span>{% endif %}
+              {% if it.is_furnishing %}<div class="text-xs text-slate-500">{{ it.furnishing_kind }}</div>{% endif %}
+            </td>
+            <td class="p-3">{{ it.price_per_day }}</td>
+            <td class="p-3">
+              {% if it.is_tent %}
+                Setup {{ it.construction_cost }}, Teardown {{ it.deconstruction_cost }}
+              {% else %}
+                —
+              {% endif %}
+            </td>
+          </tr>
+        {% else %}
+          <tr><td class="p-3" colspan="4"><i>No items on booking.</i></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="bg-white border rounded-xl p-6 shadow-sm mt-6">
+  <h3 class="text-lg font-semibold">Total</h3>
+  {% if total %}
+    <div class="mt-3 text-sm text-slate-700 space-y-1">
+      <div><b>Days:</b> {{ total.days }}</div>
+      <div><b>Rental cost:</b> {{ total.rental_cost }}</div>
+      <div><b>Tent setup/teardown:</b> {{ total.tent_setup_cost }}</div>
+      <div class="text-base"><b>Total:</b> {{ total.total_cost }}</div>
+    </div>
+  {% else %}
+    <p class="text-sm text-slate-600 mt-2"><i>Could not compute total.</i></p>
+  {% endif %}
+</div>
+{% endblock %}

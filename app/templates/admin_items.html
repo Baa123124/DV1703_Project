@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="bg-white border rounded-xl p-6 shadow-sm">
+  <div class="flex items-center gap-3">
+    <h2 class="text-xl font-semibold">Inventory (admin)</h2>
+    <div class="ml-auto flex gap-2">
+      <a class="rounded-lg border px-3 py-2 text-sm hover:bg-slate-50" href="{{ url_for('routes.admin_tent_new_form') }}">+ Add tent</a>
+      <a class="rounded-lg border px-3 py-2 text-sm hover:bg-slate-50" href="{{ url_for('routes.admin_furn_new_form') }}">+ Add furnishing</a>
+    </div>
+  </div>
+  <p class="text-xs text-slate-500 mt-2">Delete is blocked if the item is booked now or in the future.</p>
+
+  <div class="overflow-x-auto border rounded-lg mt-4">
+    <table class="min-w-full text-sm">
+      <thead class="bg-slate-50 text-slate-600">
+        <tr>
+          <th class="p-3 text-left">ID</th>
+          <th class="p-3 text-left">SKU</th>
+          <th class="p-3 text-left">Name</th>
+          <th class="p-3 text-left">Type</th>
+          <th class="p-3 text-left">Status</th>
+          <th class="p-3 text-left">Rate/day</th>
+
+          <th class="p-3 text-left">Capacity</th>
+          <th class="p-3 text-left">Build time</th>
+          <th class="p-3 text-left">Setup/Teardown</th>
+
+          <th class="p-3 text-left">Details</th>
+          <th class="p-3"></th>
+        </tr>
+      </thead>
+
+      <tbody>
+        {% for it in items %}
+          <tr class="border-t">
+            <td class="p-3">{{ it.id }}</td>
+            <td class="p-3">{{ it.sku }}</td>
+            <td class="p-3 font-medium">{{ it.display_name }}</td>
+            <td class="p-3">
+              {% if it.is_tent %}
+                <span class="inline-flex rounded-full bg-indigo-50 text-indigo-700 px-2 py-0.5 text-xs">Tent</span>
+              {% endif %}
+              {% if it.is_furnishing %}
+                <span class="inline-flex rounded-full bg-emerald-50 text-emerald-700 px-2 py-0.5 text-xs">Furnishing</span>
+              {% endif %}
+            </td>
+            <td class="p-3">{{ it.status }}</td>
+            <td class="p-3">{{ it.daily_rate }}</td>
+
+            <td class="p-3">
+              {% if it.capacity is not none %}
+                {{ it.capacity }}
+              {% endif %}
+            </td>
+
+            <td class="p-3">
+              {% if it.estimated_build_time_minutes is not none %}
+                {{ it.estimated_build_time_minutes }} min
+              {% endif %}
+            </td>
+
+            <td class="p-3">
+              {% if it.construction_cost is not none or it.deconstruction_cost is not none %}
+                {{ it.construction_cost }} / {{ it.deconstruction_cost }}
+              {% endif %}
+            </td>
+
+            <td class="p-3 text-slate-700">
+              {% if it.is_tent %}
+                Season {{ it.season_rating }}
+              {% else %}
+                {{ it.furnishing_kind or "" }}
+              {% endif %}
+            </td>
+
+            <td class="p-3">
+              <form method="post" action="{{ url_for('routes.admin_item_delete', item_id=it.id) }}"
+                    onsubmit="return confirm('Delete this item?');">
+                <button class="rounded-lg bg-rose-600 text-white px-3 py-1.5 text-xs hover:bg-rose-700" type="submit">
+                  Delete
+                </button>
+              </form>
+            </td>
+          </tr>
+        {% else %}
+          <tr><td class="p-3" colspan="11"><i>No items yet.</i></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

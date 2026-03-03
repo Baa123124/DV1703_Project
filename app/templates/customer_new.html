@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="max-w-lg bg-white border rounded-xl p-6 shadow-sm">
+  <h1 class="text-xl font-semibold">New customer (admin)</h1>
+  <p class="text-sm text-slate-500 mt-1">Creates a customer profile (no login account).</p>
+
+  <form method="post" class="mt-4 space-y-3">
+    <div>
+      <label class="text-sm font-medium">Full name</label>
+      <input name="full_name" required class="mt-1 w-full rounded-lg border px-3 py-2">
+    </div>
+    <div>
+      <label class="text-sm font-medium">Email</label>
+      <input name="email" type="email" required class="mt-1 w-full rounded-lg border px-3 py-2">
+    </div>
+    <div>
+      <label class="text-sm font-medium">Phone</label>
+      <input name="phone" class="mt-1 w-full rounded-lg border px-3 py-2">
+    </div>
+    <button class="rounded-lg bg-indigo-600 text-white px-4 py-2 hover:bg-indigo-700">Create</button>
+  </form>
+</div>
+{% endblock %}
