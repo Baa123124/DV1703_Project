@@ -1,4 +1,4 @@
--- Tent Rental Schema (Categories + Multiple Items, is_active boolean)
+-- Tent Rental Schema
 
 DROP TABLE IF EXISTS booking_items;
 DROP TABLE IF EXISTS bookings;
