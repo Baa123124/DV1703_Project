@@ -157,7 +157,7 @@ def home():
         # 2) start_date
         # 3) end_date
         # 4) start_date
-        categories = query(SQL_AVAILABLE_CATEGORIES, (end, start, end, start))
+        categories = query(SQL_AVAILABLE_CATEGORIES, (end, start, start, end))
 
         if role == "admin":
             customers = query(SQL_LIST_CUSTOMERS)
@@ -240,7 +240,7 @@ def booking_create_from_home():
     category_ids = [cid for cid, _ in selections]
     qtys = [qty for _, qty in selections]
 
-    visible_categories = query(SQL_AVAILABLE_CATEGORIES, (end, start, end, start))
+    visible_categories = query(SQL_AVAILABLE_CATEGORIES, (end, start, start, end))
     visible_by_id = {row["id"]: row for row in visible_categories}
 
     for idx, cat_id in enumerate(category_ids):
