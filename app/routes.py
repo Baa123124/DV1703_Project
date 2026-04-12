@@ -238,6 +238,35 @@ def booking_create_from_home():
     category_ids = [cid for cid, _ in selections]
     qtys = [qty for _, qty in selections]
 
+    visible_categories = query(SQL_AVAILABLE_CATEGORIES, (end, start, end, start))
+    visible_by_id = {row["id"]: row for row in visible_categories}
+
+    for idx, cat_id in enumerate(category_ids):
+        cat_row = visible_by_id.get(cat_id)
+
+        if not cat_row:
+            flash(f"Category {cat_id} is no longer available.", "error")
+            return redirect(url_for("routes.home", start_date=start, end_date=end))
+
+        if cat_row["available_units"] <= 0:
+            flash(f"{cat_row['display_name']} has no available units.", "error")
+            return redirect(url_for("routes.home", start_date=start, end_date=end))
+
+        if role != "admin" and not cat_row["has_standard_price"]:
+            flash(
+                f"{cat_row['display_name']} has no standard price for the selected dates.",
+                "error",
+            )
+            return redirect(url_for("routes.home", start_date=start, end_date=end))
+
+        if role == "admin" and not cat_row["has_standard_price"]:
+            if custom_total_prices[idx] is None:
+                flash(
+                    f"{cat_row['display_name']} needs a custom price because no standard price matches the selected dates.",
+                    "error",
+                )
+                return redirect(url_for("routes.home", start_date=start, end_date=end))
+
     try:
         row = query(
             SQL_CREATE_BOOKING_WITH_ALLOCATIONS,
@@ -262,7 +291,6 @@ def booking_create_from_home():
     except Exception as e:
         flash(f"Could not place booking: {str(e)}", "error")
         return redirect(url_for("routes.home", start_date=start, end_date=end))
-
 
 # Customers
 @bp.get("/customers")

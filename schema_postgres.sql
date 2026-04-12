@@ -465,6 +465,8 @@ DECLARE
   v_period_label VARCHAR(100);
   v_period_price NUMERIC(10,2);
   v_setup_service_fee NUMERIC(10,2);
+  v_custom_total_price NUMERIC(10,2);
+  v_custom_price_note TEXT;
 BEGIN
   IF array_length(p_category_ids, 1) IS NULL
      OR array_length(p_qtys, 1) IS NULL
@@ -516,9 +518,41 @@ BEGIN
       RAISE EXCEPTION 'Invalid qty % for category %', v_qty, v_cat;
     END IF;
 
-    SELECT gp.rental_period_id, gp.period_label, gp.period_price
-      INTO v_rental_period_id, v_period_label, v_period_price
-    FROM get_category_rental_pricing(v_cat, v_rental_days) gp;
+    v_rental_period_id := NULL;
+    v_period_label := NULL;
+    v_period_price := NULL;
+
+    SELECT
+      rp.id,
+      rp.label,
+      crpp.price
+    INTO
+      v_rental_period_id,
+      v_period_label,
+      v_period_price
+    FROM category_rental_period_prices crpp
+    JOIN rental_periods rp ON rp.id = crpp.rental_period_id
+    WHERE crpp.category_id = v_cat
+      AND v_rental_days BETWEEN rp.min_days AND rp.max_days
+    ORDER BY crpp.sort_order, rp.min_days, rp.max_days, rp.id
+    LIMIT 1;
+
+    v_custom_total_price := NULL;
+    v_custom_price_note := NULL;
+
+    IF p_custom_total_prices IS NOT NULL THEN
+      v_custom_total_price := p_custom_total_prices[v_i];
+    END IF;
+
+    IF p_custom_price_notes IS NOT NULL THEN
+      v_custom_price_note := p_custom_price_notes[v_i];
+    END IF;
+
+    IF v_rental_period_id IS NULL AND v_custom_total_price IS NULL THEN
+      RAISE EXCEPTION
+        'No standard pricing configured for category % and % rental days. Custom price required.',
+        v_cat, v_rental_days;
+    END IF;
 
     IF p_include_setup_service THEN
       SELECT tc.setup_service_fee
@@ -565,14 +599,8 @@ BEGIN
         v_period_label,
         v_period_price,
         v_setup_service_fee,
-        CASE
-          WHEN p_custom_total_prices IS NOT NULL THEN p_custom_total_prices[v_i]
-          ELSE NULL
-        END,
-        CASE
-          WHEN p_custom_price_notes IS NOT NULL THEN p_custom_price_notes[v_i]
-          ELSE NULL
-        END
+        v_custom_total_price,
+        v_custom_price_note
       FROM picked p
       RETURNING 1
     )

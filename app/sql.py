@@ -26,7 +26,7 @@ RETURNING id;
 """
 
 SQL_LIST_CUSTOMERS = """
-SELECT id, full_name, email, phone, created_at, user_id
+SELECT id, full_name, email, phone, address, created_at, user_id
 FROM customers
 ORDER BY created_at DESC;
 """
@@ -38,7 +38,7 @@ WHERE id = %s;
 """
 
 SQL_GET_CUSTOMER_BY_USER_ID = """
-SELECT id, full_name, email, phone, created_at, user_id
+SELECT id, full_name, email, phone, address, created_at, user_id
 FROM customers
 WHERE user_id = %s;
 """
@@ -91,7 +91,7 @@ WHERE rental_period_id = %s;
 # Booking: category availability + matching rental price for requested date range
 SQL_AVAILABLE_CATEGORIES = """
 WITH rental_input AS (
-  SELECT (%s::date - %s::date) AS rental_days
+  SELECT (%s::date - %s::date + 1) AS rental_days
 ),
 available_items AS (
   SELECT i.id, i.category_id
@@ -134,6 +134,7 @@ SELECT
   mp.min_days AS rental_period_min_days,
   mp.max_days AS rental_period_max_days,
   mp.price AS quoted_period_price,
+  (mp.rental_period_id IS NOT NULL) AS has_standard_price,
 
   (tc.category_id IS NOT NULL) AS is_tent,
   tc.capacity,

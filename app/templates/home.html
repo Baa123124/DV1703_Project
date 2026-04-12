@@ -96,21 +96,21 @@
                       </td>
 
                       <td class="p-3">
-                        {% if c.rental_period_id %}
+                        {% if c.has_standard_price %}
                           <div class="font-medium">{{ c.rental_period_label }}</div>
                           <div class="text-xs text-slate-500">
                             {{ c.rental_period_min_days }}–{{ c.rental_period_max_days }} days
                           </div>
                         {% else %}
-                          <span class="text-amber-700 font-medium">No matching rental period</span>
+                          <span class="text-amber-700 font-medium">No available standard price</span>
                         {% endif %}
                       </td>
 
                       <td class="p-3">
-                        {% if c.quoted_period_price is not none %}
+                        {% if c.has_standard_price %}
                           {{ c.quoted_period_price }} kr
                         {% else %}
-                          <span class="text-slate-400">N/A</span>
+                          <span class="text-slate-400">Custom admin price required</span>
                         {% endif %}
                       </td>
 
@@ -127,11 +127,32 @@
                           type="number"
                           min="0"
                           max="{{ c.available_units }}"
+                          step="1"
                           value="0"
                           name="qty_{{ c.id }}"
-                          {% if c.available_units == 0 or not c.rental_period_id %}disabled{% endif %}
+                          inputmode="numeric"
+                          {% if c.available_units == 0 or (not c.has_standard_price and role != 'admin') %}disabled{% endif %}
                           class="w-24 rounded-lg border px-3 py-2"
+                          oninput="
+                            if (this.value === '') return;
+                            const max = parseInt(this.max || '0', 10);
+                            const min = parseInt(this.min || '0', 10);
+                            let val = parseInt(this.value, 10);
+
+                            if (isNaN(val)) {
+                              this.value = min;
+                            } else if (val > max) {
+                              this.value = max;
+                            } else if (val < min) {
+                              this.value = min;
+                            }
+                          "
                         >
+                        {% if c.available_units > 0 and not c.has_standard_price and role == 'admin' %}
+                          <div class="text-xs text-amber-700 mt-1">
+                            Admin can book with custom price
+                          </div>
+                        {% endif %}
                       </td>
 
                       <td class="p-3 text-slate-700">
@@ -164,12 +185,16 @@
                             min="0"
                             step="0.01"
                             name="custom_price_{{ c.id }}"
-                            placeholder="Optional"
+                            placeholder="{% if c.has_standard_price %}Optional{% else %}Required if booking{% endif %}"
                             class="w-32 rounded-lg border px-3 py-2"
-                            {% if not c.rental_period_id %}disabled{% endif %}
+                            {% if c.available_units == 0 %}disabled{% endif %}
                           >
                           <div class="text-xs text-slate-500 mt-1">
-                            Overrides the standard period price per booked unit.
+                            {% if c.has_standard_price %}
+                              Overrides the standard period price per booked unit.
+                            {% else %}
+                              Required when no standard price matches these dates.
+                            {% endif %}
                           </div>
                         </td>
 
@@ -179,7 +204,7 @@
                             name="custom_price_note_{{ c.id }}"
                             placeholder="Discount, special period, etc."
                             class="w-56 rounded-lg border px-3 py-2"
-                            {% if not c.rental_period_id %}disabled{% endif %}
+                            {% if c.available_units == 0 %}disabled{% endif %}
                           >
                         </td>
                       {% endif %}
