@@ -213,6 +213,8 @@ def main():
         with conn.transaction():
             # Users / customer
             upsert_user(conn, ADMIN_EMAIL, ADMIN_PASSWORD, "admin")
+            temp_uid = upsert_user(conn, TEMP_USER_EMAIL, TEMP_USER_PASSWORD, "customer")
+            upsert_customer_for_user(conn, temp_uid, "Temp Customer", TEMP_USER_EMAIL, None)
 
             # Shared rental periods
             rp_1_day = upsert_rental_period(conn, "1 dag", 1, 1)
@@ -289,18 +291,31 @@ def main():
             )
             insert_units(conn, bankset_sma, "FURN-BANKSET-SMA", 10)
 
-            ljuspaket = upsert_category(conn, "Ljus paket")
-            upsert_furn_category(conn, ljuspaket, "lighting_package", None, "Skapa den perfekta stämningen")
+            ljusslinga_10m = upsert_category(conn, "Ljusslinga 10m")
+            upsert_furn_category(conn, ljusslinga_10m, "light_string_10m", None, "Ljusslinga 10 meter")
             replace_category_period_prices(
                 conn,
-                ljuspaket,
+                ljusslinga_10m,
                 [
                     (rp_1_day, Decimal("299"), 0),
                     (rp_2_3, Decimal("349"), 1),
                     (rp_4_7, Decimal("399"), 2),
                 ],
             )
-            insert_units(conn, ljuspaket, "FURN-LJUS", 4)
+            insert_units(conn, ljusslinga_10m, "FURN-LJUSSLINGA-10M", 4)
+
+            ljusslinga_15m = upsert_category(conn, "Ljusslinga 15m")
+            upsert_furn_category(conn, ljusslinga_15m, "light_string_15m", None, "Ljusslinga 15 meter")
+            replace_category_period_prices(
+                conn,
+                ljusslinga_15m,
+                [
+                    (rp_1_day, Decimal("299"), 0),
+                    (rp_2_3, Decimal("349"), 1),
+                    (rp_4_7, Decimal("399"), 2),
+                ],
+            )
+            insert_units(conn, ljusslinga_15m, "FURN-LJUSSLINGA-15M", 1)
 
             # Tents - exactly one of each
             tent_3x3 = upsert_category(conn, "Tält 3×3 m")
@@ -309,7 +324,7 @@ def main():
                 tent_3x3,
                 capacity=3,
                 season_rating=2,
-                build_time=10,
+                build_time=20,
                 setup_service_fee=Decimal("0"),
                 floor_area_m2=Decimal("9.0"),
             )
@@ -330,7 +345,7 @@ def main():
                 tent_5x3,
                 capacity=16,
                 season_rating=3,
-                build_time=25,
+                build_time=50,
                 setup_service_fee=Decimal("1199"),
                 floor_area_m2=Decimal("15.0"),
             )
@@ -351,7 +366,7 @@ def main():
                 tent_6x4,
                 capacity=30,
                 season_rating=4,
-                build_time=30,
+                build_time=70,
                 setup_service_fee=Decimal("1499"),
                 floor_area_m2=Decimal("24.0"),
             )
@@ -372,7 +387,7 @@ def main():
                 tent_8x4,
                 capacity=35,
                 season_rating=3,
-                build_time=35,
+                build_time=78,
                 setup_service_fee=Decimal("1399"),
                 floor_area_m2=Decimal("32.0"),
             )
@@ -393,7 +408,7 @@ def main():
                 tent_5x10,
                 capacity=70,
                 season_rating=5,
-                build_time=50,
+                build_time=270,
                 setup_service_fee=Decimal("2399"),
                 floor_area_m2=Decimal("50.0"),
             )
@@ -414,7 +429,7 @@ def main():
                 tent_6x6,
                 capacity=45,
                 season_rating=5,
-                build_time=45,
+                build_time=220,
                 setup_service_fee=Decimal("1999"),
                 floor_area_m2=Decimal("36.0"),
             )
@@ -435,7 +450,7 @@ def main():
                 tent_8x5,
                 capacity=50,
                 season_rating=5,
-                build_time=45,
+                build_time=110,
                 setup_service_fee=Decimal("1699"),
                 floor_area_m2=Decimal("40.0"),
             )
@@ -456,7 +471,7 @@ def main():
                 tent_6x10,
                 capacity=80,
                 season_rating=5,
-                build_time=60,
+                build_time=300,
                 setup_service_fee=Decimal("2599"),
                 floor_area_m2=Decimal("60.0"),
             )
