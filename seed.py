@@ -213,8 +213,8 @@ def main():
         with conn.transaction():
             # Users / customer
             upsert_user(conn, ADMIN_EMAIL, ADMIN_PASSWORD, "admin")
-            temp_uid = upsert_user(conn, TEMP_USER_EMAIL, TEMP_USER_PASSWORD, "customer")
-            upsert_customer_for_user(conn, temp_uid, "Temp Customer", TEMP_USER_EMAIL, None)
+            # temp_uid = upsert_user(conn, TEMP_USER_EMAIL, TEMP_USER_PASSWORD, "customer")
+            # upsert_customer_for_user(conn, temp_uid, "Temp Customer", TEMP_USER_EMAIL, None)
 
             # Shared rental periods
             rp_1_day = upsert_rental_period(conn, "1 dag", 1, 1)
