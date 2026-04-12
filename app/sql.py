@@ -652,6 +652,13 @@ SELECT
   b.start_date,
   b.end_date,
   b.status,
+  EXISTS (
+    SELECT 1
+    FROM booking_items bi2
+    JOIN items i2 ON i2.id = bi2.item_id
+    JOIN tent_categories tc2 ON tc2.category_id = i2.category_id
+    WHERE bi2.booking_id = b.id
+  ) AS has_tent,
   b.include_delivery,
   b.delivery_fee,
   b.include_setup_service,
