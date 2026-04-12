@@ -1,7 +1,18 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="bg-white border rounded-xl p-6 shadow-sm">
-  <h1 class="text-xl font-semibold">All bookings</h1>
+  <div class="flex items-center gap-3">
+    <h1 class="text-xl font-semibold">All bookings</h1>
+
+    <div class="ml-auto">
+      <a
+        class="rounded-lg border px-3 py-2 text-sm hover:bg-slate-50"
+        href="{{ url_for('routes.admin_bookings_calendar') }}"
+      >
+        Calendar view
+      </a>
+    </div>
+  </div>
 
   <div class="overflow-x-auto border rounded-lg mt-4">
     <table class="min-w-full text-sm">

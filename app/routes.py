@@ -896,3 +896,17 @@ def customer_edit_save(customer_id: int):
     except Exception as e:
         flash(f"Update failed: {str(e)}", "error")
         return redirect(url_for("routes.customer_edit_form", customer_id=customer_id))
+    
+@bp.get("/admin/bookings/calendar")
+def admin_bookings_calendar():
+    require_admin()
+    bookings = query(SQL_LIST_ALL_BOOKINGS)
+
+    for b in bookings:
+        b["end_date_plus_one"] = b["end_date"] + timedelta(days=1)
+
+    return render_template(
+        "booking_calendar.html",
+        bookings=bookings,
+        role="admin",
+    )

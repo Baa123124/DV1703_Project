@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="bg-white border rounded-xl p-6 shadow-sm">
+  <div class="flex items-center gap-3">
+    <div>
+      <h1 class="text-xl font-semibold">Booking calendar</h1>
+      <p class="text-sm text-slate-500 mt-1">
+        Click a booking to open its details.
+      </p>
+    </div>
+
+    <div class="ml-auto">
+      <a
+        class="rounded-lg border px-3 py-2 text-sm hover:bg-slate-50"
+        href="{{ url_for('routes.admin_bookings') }}"
+      >
+        Table view
+      </a>
+    </div>
+  </div>
+
+  <div class="mt-6">
+    <div id="booking-calendar"></div>
+  </div>
+</div>
+
+<script id="booking-events-data" type="application/json">
+[
+  {% for b in bookings %}
+    {
+      "id": {{ b.id|tojson }},
+      "title": {{ ("#" ~ b.id ~ " - " ~ (b.full_name or "Unknown customer"))|tojson }},
+      "start": {{ (b.start_date|string)|tojson }},
+      "end": {{ ((b.end_date_plus_one|string) if b.end_date_plus_one is defined else (b.end_date|string))|tojson }},
+      "url": {{ url_for('routes.booking_detail', booking_id=b.id)|tojson }},
+      "extendedProps": {
+        "status": {{ b.status|tojson }},
+        "customer": {{ (b.full_name or "")|tojson }},
+        "email": {{ (b.email or "")|tojson }}
+      }
+    }{% if not loop.last %},{% endif %}
+  {% endfor %}
+]
+</script>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css">
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const calendarEl = document.getElementById("booking-calendar");
+    const eventsDataEl = document.getElementById("booking-events-data");
+    const events = JSON.parse(eventsDataEl.textContent);
+
+    const calendar = new FullCalendar.Calendar(calendarEl, {
+      initialView: "dayGridMonth",
+      height: "auto",
+      firstDay: 1,
+      navLinks: true,
+      editable: false,
+      selectable: false,
+      dayMaxEvents: true,
+      headerToolbar: {
+        left: "prev,next today",
+        center: "title",
+        right: "dayGridMonth,timeGridWeek,listMonth"
+      },
+      events: events,
+      eventClick: function(info) {
+        info.jsEvent.preventDefault();
+        if (info.event.url) {
+          window.location.href = info.event.url;
+        }
+      },
+      eventDidMount: function(info) {
+        const status = info.event.extendedProps.status;
+        const customer = info.event.extendedProps.customer;
+        const email = info.event.extendedProps.email;
+
+        info.el.title =
+          `Booking #${info.event.id}\n` +
+          `Customer: ${customer}\n` +
+          `Email: ${email}\n` +
+          `Status: ${status}`;
+      }
+    });
+
+    calendar.render();
+  });
+</script>
+{% endblock %}
