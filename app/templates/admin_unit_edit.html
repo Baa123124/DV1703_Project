@@ -1,66 +1,53 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="max-w-2xl bg-white border rounded-xl p-6 shadow-sm">
-  <h2 class="text-xl font-semibold">Edit unit #{{ unit.id }}</h2>
-  <p class="text-sm text-slate-500 mt-1">
-    Changes here only affect this physical inventory unit.
-  </p>
-
-  <form method="post" class="mt-4 space-y-4">
-    <div>
-      <label class="text-sm font-medium" for="category_id">Category</label>
-      <select
-        id="category_id"
-        name="category_id"
-        required
-        class="mt-1 w-full rounded-lg border px-3 py-2"
-      >
-        {% for c in categories %}
-          <option value="{{ c.id }}" {% if c.id == unit.category_id %}selected{% endif %}>
-            {{ c.display_name }}
-            {% if c.is_tent %} - Tent{% endif %}
-            {% if c.is_tent and c.capacity %} (cap {{ c.capacity }}){% endif %}
-            {% if c.is_furnishing and c.furnishing_kind %} - {{ c.furnishing_kind }}{% endif %}
-          </option>
-        {% endfor %}
-      </select>
+<section class="mx-auto max-w-3xl">
+  <div class="relative overflow-hidden rounded-[2rem] border border-sky-100 bg-gradient-to-br from-white via-sky-50 to-slate-50 shadow-sm">
+    <div class="absolute inset-y-0 right-0 hidden w-1/3 bg-[radial-gradient(circle_at_top,rgba(14,165,233,0.16),transparent_58%)] lg:block"></div>
+    <div class="relative px-6 py-8 md:px-8">
+      <div class="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-white/80 px-3 py-1 text-xs font-medium uppercase tracking-[0.2em] text-sky-700">
+        Inventory Control
+      </div>
+      <h1 class="mt-4 text-3xl font-semibold tracking-tight text-slate-900">Edit unit #{{ unit.id }}</h1>
+      <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+        Update this physical unit without changing the underlying category definition.
+      </p>
     </div>
+  </div>
 
-    <div>
-      <label class="text-sm font-medium" for="sku">SKU</label>
-      <input
-        id="sku"
-        name="sku"
-        value="{{ unit.sku }}"
-        required
-        class="mt-1 w-full rounded-lg border px-3 py-2"
-      >
-    </div>
+  <div class="mt-6 rounded-[2rem] border border-slate-200 bg-white shadow-sm">
+    <form method="post" class="grid gap-6 px-6 py-6 md:px-8">
+      <div>
+        <label class="text-sm font-medium text-slate-700" for="category_id">Category</label>
+        <select id="category_id" name="category_id" required class="mt-1 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 shadow-sm transition focus:border-sky-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-sky-100">
+          {% for c in categories %}
+            <option value="{{ c.id }}" {% if c.id == unit.category_id %}selected{% endif %}>
+              {{ c.display_name }}{% if c.is_tent %} - Tent{% endif %}{% if c.is_tent and c.capacity %} (cap {{ c.capacity }}){% endif %}{% if c.is_furnishing and c.furnishing_kind %} - {{ c.furnishing_kind }}{% endif %}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
 
-    <div class="flex items-center gap-2">
-      <input
-        id="is_active"
-        name="is_active"
-        type="checkbox"
-        class="h-4 w-4"
-        {% if unit.is_active %}checked{% endif %}
-      >
-      <label for="is_active" class="text-sm font-medium">
-        Active (available for booking)
+      <div>
+        <label class="text-sm font-medium text-slate-700" for="sku">SKU</label>
+        <input id="sku" name="sku" value="{{ unit.sku }}" required class="mt-1 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 shadow-sm transition focus:border-sky-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-sky-100">
+      </div>
+
+      <label class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+        <div class="flex items-center gap-3">
+          <input id="is_active" name="is_active" type="checkbox" class="h-4 w-4" {% if unit.is_active %}checked{% endif %}>
+          <span class="text-sm font-medium text-slate-900">Active (available for booking)</span>
+        </div>
       </label>
-    </div>
 
-    <div class="flex gap-2">
-      <button class="rounded-lg bg-indigo-600 text-white px-4 py-2 hover:bg-indigo-700">
-        Save
-      </button>
-      <a
-        class="rounded-lg border px-4 py-2 hover:bg-slate-50"
-        href="{{ url_for('routes.admin_items') }}"
-      >
-        Cancel
-      </a>
-    </div>
-  </form>
-</div>
+      <div class="flex flex-wrap items-center gap-3">
+        <button class="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-5 py-3 text-sm font-medium text-white transition hover:bg-sky-700">
+          Save unit
+        </button>
+        <a class="inline-flex items-center justify-center rounded-2xl border border-slate-300 px-5 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50" href="{{ url_for('routes.admin_items') }}">
+          Cancel
+        </a>
+      </div>
+    </form>
+  </div>
+</section>
 {% endblock %}

@@ -1,28 +1,28 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="bg-white border rounded-xl p-6 shadow-sm">
-  <div class="flex items-center gap-3">
-    <div>
-      <h1 class="text-xl font-semibold">Booking calendar</h1>
-      <p class="text-sm text-slate-500 mt-1">
-        Click a booking to open its details.
-      </p>
-    </div>
-
-    <div class="ml-auto">
-      <a
-        class="rounded-lg border px-3 py-2 text-sm hover:bg-slate-50"
-        href="{{ url_for('routes.admin_bookings') }}"
-      >
+<section class="relative overflow-hidden rounded-[2rem] border border-sky-100 bg-gradient-to-br from-white via-sky-50 to-slate-50 shadow-sm">
+  <div class="absolute inset-y-0 right-0 hidden w-1/3 bg-[radial-gradient(circle_at_top,rgba(14,165,233,0.16),transparent_58%)] lg:block"></div>
+  <div class="relative px-6 py-8 md:px-8">
+    <div class="flex flex-wrap items-start justify-between gap-4">
+      <div>
+        <div class="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-white/80 px-3 py-1 text-xs font-medium uppercase tracking-[0.2em] text-sky-700">
+          Calendar View
+        </div>
+        <h1 class="mt-4 text-3xl font-semibold tracking-tight text-slate-900 md:text-4xl">Booking calendar</h1>
+        <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+          Browse bookings across the month and jump straight into the detail page from any event.
+        </p>
+      </div>
+      <a class="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-sky-700" href="{{ url_for('routes.admin_bookings') }}">
         Table view
       </a>
     </div>
   </div>
+</section>
 
-  <div class="mt-6">
-    <div id="booking-calendar"></div>
-  </div>
-</div>
+<section class="mt-6 rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm md:p-8">
+  <div id="booking-calendar"></div>
+</section>
 
 <script id="booking-events-data" type="application/json">
 [

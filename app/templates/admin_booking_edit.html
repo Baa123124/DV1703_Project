@@ -1,0 +1,279 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="relative overflow-hidden rounded-[2rem] border border-sky-100 bg-gradient-to-br from-white via-sky-50 to-slate-50 shadow-sm">
+  <div class="absolute inset-y-0 right-0 hidden w-1/3 bg-[radial-gradient(circle_at_top,rgba(14,165,233,0.16),transparent_58%)] lg:block"></div>
+  <div class="relative px-6 py-8 md:px-8">
+    <div class="flex flex-wrap items-start justify-between gap-4">
+      <div>
+        <div class="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-white/80 px-3 py-1 text-xs font-medium uppercase tracking-[0.2em] text-sky-700">
+          Booking Editor
+        </div>
+        <h1 class="mt-4 text-3xl font-semibold tracking-tight text-slate-900 md:text-4xl">
+          Edit booking #{{ booking.id }}
+        </h1>
+        <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+          Update the booking header, service options, notes, and pricing controls while keeping the currently assigned items intact.
+        </p>
+      </div>
+
+      <a
+        class="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-sky-700 focus:outline-none focus:ring-4 focus:ring-sky-100"
+        href="{{ url_for('routes.booking_detail', booking_id=booking.id) }}"
+      >
+        Back to booking
+      </a>
+    </div>
+  </div>
+</section>
+
+<form method="post" action="{{ url_for('routes.admin_booking_edit_save', booking_id=booking.id) }}" class="mt-6 grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+  <section class="rounded-[2rem] border border-slate-200 bg-white shadow-sm">
+    <div class="border-b border-slate-200 px-6 py-5 md:px-8">
+      <h2 class="text-2xl font-semibold text-slate-900">Booking settings</h2>
+      <p class="mt-1 text-sm text-slate-500">Core details for the booking record.</p>
+    </div>
+
+    <div class="grid gap-6 px-6 py-6 md:px-8">
+      <div class="grid gap-4 md:grid-cols-2">
+        <div>
+          <label class="text-sm font-medium text-slate-700" for="customer_id">Customer</label>
+          <select
+            id="customer_id"
+            name="customer_id"
+            required
+            class="mt-1 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 shadow-sm transition focus:border-sky-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-sky-100"
+          >
+            {% for customer in customers %}
+              <option value="{{ customer.id }}" {% if customer.id == booking.customer_id %}selected{% endif %}>
+                {{ customer.full_name }} ({{ customer.email or "No email" }})
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div>
+          <label class="text-sm font-medium text-slate-700" for="status">Status</label>
+          <select
+            id="status"
+            name="status"
+            required
+            class="mt-1 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 shadow-sm transition focus:border-sky-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-sky-100"
+          >
+            <option value="pending" {% if booking.status == 'pending' %}selected{% endif %}>Pending</option>
+            <option value="confirmed" {% if booking.status == 'confirmed' %}selected{% endif %}>Confirmed</option>
+            <option value="cancelled" {% if booking.status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid gap-4 md:grid-cols-2">
+        <div>
+          <label class="text-sm font-medium text-slate-700" for="start_date">Start date</label>
+          <input
+            id="start_date"
+            type="date"
+            name="start_date"
+            value="{{ booking.start_date }}"
+            required
+            class="mt-1 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 shadow-sm transition focus:border-sky-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-sky-100"
+          >
+        </div>
+
+        <div>
+          <label class="text-sm font-medium text-slate-700" for="end_date">End date</label>
+          <input
+            id="end_date"
+            type="date"
+            name="end_date"
+            value="{{ booking.end_date }}"
+            required
+            class="mt-1 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 shadow-sm transition focus:border-sky-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-sky-100"
+          >
+        </div>
+      </div>
+
+      <div class="grid gap-4 md:grid-cols-2">
+        <label class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+          <div class="flex items-start gap-3">
+            <input
+              type="checkbox"
+              name="include_setup_service"
+              value="on"
+              class="mt-1"
+              {% if booking.include_setup_service %}checked{% endif %}
+            >
+            <span>
+              <span class="block text-sm font-medium text-slate-900">Include setup service</span>
+              <span class="mt-1 block text-xs leading-5 text-slate-500">Stored per booking and affects current total calculations.</span>
+            </span>
+          </div>
+        </label>
+
+        <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+          <label class="flex items-start gap-3">
+            <input
+              type="checkbox"
+              name="include_delivery"
+              value="on"
+              class="mt-1"
+              {% if booking.include_delivery %}checked{% endif %}
+            >
+            <span>
+              <span class="block text-sm font-medium text-slate-900">Include delivery</span>
+              <span class="mt-1 block text-xs leading-5 text-slate-500">Enable delivery and store the current fee snapshot.</span>
+            </span>
+          </label>
+
+          <div class="mt-4">
+            <label class="text-sm font-medium text-slate-700" for="delivery_fee">Delivery fee</label>
+            <input
+              id="delivery_fee"
+              type="number"
+              min="0"
+              step="0.01"
+              name="delivery_fee"
+              value="{{ booking.delivery_fee if booking.delivery_fee is not none else '' }}"
+              class="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 shadow-sm transition focus:border-sky-400 focus:outline-none focus:ring-4 focus:ring-sky-100"
+            >
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <label class="text-sm font-medium text-slate-700" for="booking_note">Booking note</label>
+        <textarea
+          id="booking_note"
+          name="booking_note"
+          rows="4"
+          class="mt-1 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 shadow-sm transition focus:border-sky-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-sky-100"
+        >{{ booking.booking_note or '' }}</textarea>
+      </div>
+
+      <div>
+        <label class="text-sm font-medium text-slate-700" for="admin_note">Admin note</label>
+        <textarea
+          id="admin_note"
+          name="admin_note"
+          rows="4"
+          class="mt-1 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 shadow-sm transition focus:border-sky-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-sky-100"
+        >{{ booking.admin_note or '' }}</textarea>
+      </div>
+
+      <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+        <div class="font-medium text-sm text-amber-900">Booking total override</div>
+        <div class="mt-1 text-xs text-amber-800/80">When set, this replaces the computed rental, setup, and delivery total.</div>
+
+        <div class="mt-3 grid gap-4 md:grid-cols-2">
+          <div>
+            <label class="text-sm font-medium text-amber-950" for="custom_total_price">Override total</label>
+            <input
+              id="custom_total_price"
+              type="number"
+              min="0"
+              step="0.01"
+              name="custom_total_price"
+              value="{{ booking.custom_total_price if booking.custom_total_price is not none else '' }}"
+              class="mt-1 w-full rounded-xl border border-amber-200 bg-white px-3 py-2 shadow-sm transition focus:border-amber-400 focus:outline-none focus:ring-4 focus:ring-amber-100"
+            >
+          </div>
+
+          <div>
+            <label class="text-sm font-medium text-amber-950" for="custom_price_note">Override note</label>
+            <input
+              id="custom_price_note"
+              type="text"
+              name="custom_price_note"
+              value="{{ booking.custom_price_note or '' }}"
+              class="mt-1 w-full rounded-xl border border-amber-200 bg-white px-3 py-2 shadow-sm transition focus:border-amber-400 focus:outline-none focus:ring-4 focus:ring-amber-100"
+            >
+          </div>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-3">
+        <button class="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-5 py-3 text-sm font-medium text-white transition hover:bg-sky-700 focus:outline-none focus:ring-4 focus:ring-sky-100">
+          Save booking
+        </button>
+        <a
+          class="inline-flex items-center justify-center rounded-2xl border border-slate-300 px-5 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+          href="{{ url_for('routes.booking_detail', booking_id=booking.id) }}"
+        >
+          Cancel
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <aside class="space-y-6">
+    <section class="rounded-[2rem] border border-slate-200 bg-white shadow-sm">
+      <div class="border-b border-slate-200 px-6 py-5">
+        <h2 class="text-xl font-semibold text-slate-900">Assigned items</h2>
+        <p class="mt-1 text-sm text-slate-500">Editing this page does not change item allocations.</p>
+      </div>
+
+      <div class="px-6 py-6">
+        <div class="space-y-3">
+          {% for item in items %}
+            <div class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+              <div class="font-medium text-slate-900">{{ item.display_name }}</div>
+              <div class="mt-1 text-xs text-slate-500">{{ item.sku }}</div>
+            </div>
+          {% else %}
+            <div class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-600">
+              No items on this booking.
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+
+    <section class="rounded-[2rem] border border-slate-200 bg-white shadow-sm">
+      <div class="border-b border-slate-200 px-6 py-5">
+        <h2 class="text-xl font-semibold text-slate-900">Current total</h2>
+      </div>
+
+      <div class="px-6 py-6 text-sm text-slate-700 space-y-2">
+        {% if total %}
+          <div><b>Days:</b> {{ total.days }}</div>
+          <div><b>Rental cost:</b> {{ total.rental_cost }} kr</div>
+          <div><b>Setup cost:</b> {{ total.setup_cost }} kr</div>
+          <div><b>Delivery cost:</b> {{ total.delivery_cost }} kr</div>
+          {% if total.has_booking_override %}
+            <div><b>Booking override:</b> {{ total.booking_custom_total_price }} kr</div>
+          {% endif %}
+          <div class="pt-2 text-base"><b>Total:</b> {{ total.total_cost }} kr</div>
+        {% else %}
+          <div class="text-slate-500">Could not compute total.</div>
+        {% endif %}
+      </div>
+    </section>
+  </aside>
+</form>
+
+<script>
+  (() => {
+    const startInput = document.getElementById("start_date");
+    const endInput = document.getElementById("end_date");
+
+    if (!startInput || !endInput) {
+      return;
+    }
+
+    const syncEndDate = () => {
+      if (!startInput.value) {
+        return;
+      }
+
+      endInput.min = startInput.value;
+
+      if (!endInput.value || endInput.value < startInput.value) {
+        endInput.value = startInput.value;
+      }
+    };
+
+    startInput.addEventListener("change", syncEndDate);
+    startInput.addEventListener("input", syncEndDate);
+    syncEndDate();
+  })();
+</script>
+{% endblock %}

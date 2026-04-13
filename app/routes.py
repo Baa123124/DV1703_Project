@@ -57,6 +57,8 @@ from .sql import (
     SQL_LIST_ALL_BOOKINGS,
     SQL_CONFIRM_BOOKING,
     SQL_CANCEL_BOOKING,
+    SQL_UPDATE_BOOKING_ADMIN_FIELDS,
+    SQL_BOOKING_ITEM_DATE_CONFLICT,
 )
 
 bp = Blueprint("routes", __name__)
@@ -897,6 +899,100 @@ def booking_detail(booking_id: int):
         total=total,
         role=role,
     )
+
+
+@bp.get("/admin/bookings/<int:booking_id>/edit")
+def admin_booking_edit_form(booking_id: int):
+    require_admin()
+
+    booking = query(SQL_BOOKING_DETAIL, (booking_id,), one=True)
+    if not booking:
+        flash("Booking not found.", "error")
+        return redirect(url_for("routes.admin_bookings"))
+
+    customers = query(SQL_LIST_CUSTOMERS)
+    items = query(SQL_BOOKING_ITEMS, (booking_id,))
+    total = query(SQL_BOOKING_TOTAL, (booking_id,), one=True)
+
+    return render_template(
+        "admin_booking_edit.html",
+        booking=booking,
+        customers=customers,
+        items=items,
+        total=total,
+        role="admin",
+    )
+
+
+@bp.post("/admin/bookings/<int:booking_id>/edit")
+def admin_booking_edit_save(booking_id: int):
+    require_admin()
+
+    booking = query(SQL_BOOKING_DETAIL, (booking_id,), one=True)
+    if not booking:
+        flash("Booking not found.", "error")
+        return redirect(url_for("routes.admin_bookings"))
+
+    customer_id = request.form.get("customer_id", "").strip()
+    start_date = request.form.get("start_date", "").strip()
+    end_date = request.form.get("end_date", "").strip()
+    status = request.form.get("status", "").strip()
+    include_delivery = _to_bool(request.form.get("include_delivery"))
+    include_setup_service = _to_bool(request.form.get("include_setup_service"))
+    delivery_fee = _to_str_or_none(request.form.get("delivery_fee")) if include_delivery else None
+    custom_total_price = _to_str_or_none(request.form.get("custom_total_price"))
+    custom_price_note = _to_str_or_none(request.form.get("custom_price_note"))
+    booking_note = _to_str_or_none(request.form.get("booking_note"))
+    admin_note = _to_str_or_none(request.form.get("admin_note"))
+
+    if not customer_id or not start_date or not end_date or not status:
+        flash("Customer, dates, and status are required.", "error")
+        return redirect(url_for("routes.admin_booking_edit_form", booking_id=booking_id))
+
+    if status not in ("pending", "confirmed", "cancelled"):
+        flash("Invalid booking status.", "error")
+        return redirect(url_for("routes.admin_booking_edit_form", booking_id=booking_id))
+
+    if end_date < start_date:
+        flash("End date cannot be earlier than start date.", "error")
+        return redirect(url_for("routes.admin_booking_edit_form", booking_id=booking_id))
+
+    if status != "cancelled":
+        conflict = query(
+            SQL_BOOKING_ITEM_DATE_CONFLICT,
+            (booking_id, booking_id, start_date, end_date),
+            one=True,
+        )
+        if conflict:
+            flash(
+                f"Cannot move booking to these dates because {conflict['display_name']} ({conflict['sku']}) overlaps with booking #{conflict['conflicting_booking_id']}.",
+                "error",
+            )
+            return redirect(url_for("routes.admin_booking_edit_form", booking_id=booking_id))
+
+    try:
+        execute(
+            SQL_UPDATE_BOOKING_ADMIN_FIELDS,
+            (
+                customer_id,
+                start_date,
+                end_date,
+                status,
+                include_delivery,
+                delivery_fee,
+                include_setup_service,
+                custom_total_price,
+                custom_price_note,
+                booking_note,
+                admin_note,
+                booking_id,
+            ),
+        )
+        flash("Booking updated.", "success")
+        return redirect(url_for("routes.booking_detail", booking_id=booking_id))
+    except Exception as e:
+        flash(f"Update failed: {str(e)}", "error")
+        return redirect(url_for("routes.admin_booking_edit_form", booking_id=booking_id))
 
 
 @bp.post("/bookings/<int:booking_id>/confirm")

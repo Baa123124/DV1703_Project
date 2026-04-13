@@ -734,6 +734,27 @@ SET status = 'cancelled'
 WHERE id = %s;
 """
 
+SQL_BOOKING_ITEM_DATE_CONFLICT = """
+SELECT
+  i.id AS item_id,
+  i.sku,
+  c.display_name,
+  b2.id AS conflicting_booking_id,
+  b2.start_date,
+  b2.end_date
+FROM booking_items current_bi
+JOIN items i ON i.id = current_bi.item_id
+JOIN categories c ON c.id = i.category_id
+JOIN booking_items other_bi ON other_bi.item_id = current_bi.item_id
+JOIN bookings b2 ON b2.id = other_bi.booking_id
+WHERE current_bi.booking_id = %s
+  AND other_bi.booking_id <> %s
+  AND b2.status <> 'cancelled'
+  AND %s <= b2.end_date
+  AND %s >= b2.start_date
+LIMIT 1;
+"""
+
 # Optional booking item edits / overrides
 SQL_UPDATE_BOOKING_ITEM_OVERRIDE = """
 UPDATE booking_items
@@ -754,11 +775,16 @@ WHERE booking_id = %s
 
 SQL_UPDATE_BOOKING_ADMIN_FIELDS = """
 UPDATE bookings
-SET include_delivery = %s,
+SET customer_id = %s,
+    start_date = %s,
+    end_date = %s,
+    status = %s,
+    include_delivery = %s,
     delivery_fee = %s,
     include_setup_service = %s,
     custom_total_price = %s,
     custom_price_note = %s,
+    booking_note = %s,
     admin_note = %s
 WHERE id = %s;
 """
