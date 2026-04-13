@@ -148,6 +148,7 @@
               <div class="overflow-hidden rounded-[1.5rem] border border-slate-200 bg-slate-50/60">
                 <div class="grid gap-4 p-4 md:hidden" data-booking-input-set="mobile">
                   {% for c in categories %}
+                    {% set bookable_available = c.admin_available_items if role == 'admin' else c.available_items %}
                     <div
                       class="rounded-[1.4rem] border border-slate-200 bg-white p-4 shadow-sm"
                       data-category-card
@@ -172,10 +173,15 @@
                             {% endif %}
                           </div>
                         </div>
-                        {% if c.available_items == 0 %}
+                        {% if bookable_available == 0 %}
                           <span class="text-xs font-medium text-rose-600">None available</span>
                         {% else %}
-                          <span class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">{{ c.available_items }}</span>
+                          <div class="inline-flex items-center gap-1.5 text-xs font-medium">
+                            <span class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-slate-700">{{ c.available_items }}</span>
+                            {% if role == 'admin' and c.same_day_turnaround_items > 0 %}
+                              <span class="text-amber-700">({{ c.admin_available_items }})</span>
+                            {% endif %}
+                          </div>
                         {% endif %}
                       </div>
 
@@ -207,17 +213,19 @@
                             id="qty_mobile_{{ c.id }}"
                             type="number"
                             min="0"
-                            max="{{ c.available_items }}"
+                            max="{{ bookable_available }}"
                             step="1"
                             value="0"
                             name="qty_{{ c.id }}"
                             inputmode="numeric"
-                            {% if c.available_items == 0 or (not c.has_standard_price and role != 'admin') %}disabled{% endif %}
+                            {% if bookable_available == 0 or (not c.has_standard_price and role != 'admin') %}disabled{% endif %}
                             data-category-id="{{ c.id }}"
                             data-category-name="{{ c.display_name }}"
                             data-standard-price="{{ c.quoted_period_price if c.has_standard_price else '' }}"
                             data-setup-fee="{{ c.setup_service_fee if c.is_tent else 0 }}"
                             data-is-tent="{{ 'true' if c.is_tent else 'false' }}"
+                            data-strict-available="{{ c.available_items }}"
+                            data-turnaround-available="{{ c.same_day_turnaround_items }}"
                             class="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 shadow-sm transition focus:border-sky-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-sky-100"
                           >
                         </div>
@@ -234,7 +242,7 @@
                               data-custom-price-for="{{ c.id }}"
                               placeholder="{% if c.has_standard_price %}Optional{% else %}Required if booking{% endif %}"
                               class="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 shadow-sm transition focus:border-sky-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-sky-100"
-                              {% if c.available_items == 0 %}disabled{% endif %}
+                              {% if bookable_available == 0 %}disabled{% endif %}
                             >
                           </div>
                           <div>
@@ -245,7 +253,7 @@
                               name="custom_price_note_{{ c.id }}"
                               placeholder="Discount, special period, etc."
                               class="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 shadow-sm transition focus:border-sky-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-sky-100"
-                              {% if c.available_items == 0 %}disabled{% endif %}
+                              {% if bookable_available == 0 %}disabled{% endif %}
                             >
                           </div>
                         {% endif %}
@@ -274,6 +282,7 @@
 
                     <tbody class="divide-y divide-slate-200 bg-white">
                       {% for c in categories %}
+                        {% set bookable_available = c.admin_available_items if role == 'admin' else c.available_items %}
                         <tr
                           class="align-top transition hover:bg-sky-50/60"
                           data-category-row
@@ -326,12 +335,17 @@
                           </td>
 
                           <td class="p-3">
-                            {% if c.available_items == 0 %}
+                            {% if bookable_available == 0 %}
                               <span class="font-medium text-rose-600">None available</span>
                             {% else %}
-                              <span class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
-                                {{ c.available_items }}
-                              </span>
+                              <div class="inline-flex items-center gap-1.5 text-xs font-medium">
+                                <span class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-slate-700">
+                                  {{ c.available_items }}
+                                </span>
+                                {% if role == 'admin' and c.same_day_turnaround_items > 0 %}
+                                  <span class="text-amber-700">({{ c.admin_available_items }})</span>
+                                {% endif %}
+                              </div>
                             {% endif %}
                           </td>
 
@@ -339,7 +353,7 @@
                             <input
                               type="number"
                               min="0"
-                              max="{{ c.available_items }}"
+                              max="{{ bookable_available }}"
                               step="1"
                               value="0"
                               name="qty_{{ c.id }}"
@@ -349,7 +363,9 @@
                               data-standard-price="{{ c.quoted_period_price if c.has_standard_price else '' }}"
                               data-setup-fee="{{ c.setup_service_fee if c.is_tent else 0 }}"
                               data-is-tent="{{ 'true' if c.is_tent else 'false' }}"
-                              {% if c.available_items == 0 or (not c.has_standard_price and role != 'admin') %}disabled{% endif %}
+                              data-strict-available="{{ c.available_items }}"
+                              data-turnaround-available="{{ c.same_day_turnaround_items }}"
+                              {% if bookable_available == 0 or (not c.has_standard_price and role != 'admin') %}disabled{% endif %}
                               class="w-24 rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 shadow-sm transition focus:border-sky-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-sky-100"
                               oninput="
                                 if (this.value === '') return;
@@ -366,7 +382,7 @@
                                 }
                               "
                             >
-                            {% if c.available_items > 0 and not c.has_standard_price and role == 'admin' %}
+                            {% if bookable_available > 0 and not c.has_standard_price and role == 'admin' %}
                               <div class="mt-2 text-xs font-medium text-amber-700">
                                 Admin can book with custom price
                               </div>
@@ -406,7 +422,7 @@
                                 data-custom-price-for="{{ c.id }}"
                                 placeholder="{% if c.has_standard_price %}Optional{% else %}Required if booking{% endif %}"
                                 class="w-32 rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 shadow-sm transition focus:border-sky-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-sky-100"
-                                {% if c.available_items == 0 %}disabled{% endif %}
+                                {% if bookable_available == 0 %}disabled{% endif %}
                               >
                               <div class="mt-2 text-xs text-slate-500">
                                 {% if c.has_standard_price %}
@@ -423,7 +439,7 @@
                                 name="custom_price_note_{{ c.id }}"
                                 placeholder="Discount, special period, etc."
                                 class="w-56 rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 shadow-sm transition focus:border-sky-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-sky-100"
-                                {% if c.available_items == 0 %}disabled{% endif %}
+                                {% if bookable_available == 0 %}disabled{% endif %}
                               >
                             </td>
                           {% endif %}
@@ -762,6 +778,10 @@
                   <div class="font-medium">Existing customer will be updated</div>
                   <div class="mt-1" id="booking-confirmation-warning-text"></div>
                 </div>
+                <div id="booking-confirmation-turnaround-warning" class="mt-4 hidden rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                  <div class="font-medium">Same-day turnaround items will be used</div>
+                  <div class="mt-1" id="booking-confirmation-turnaround-warning-text"></div>
+                </div>
 
                 <div class="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
                   <div class="text-xs font-medium uppercase tracking-[0.18em] text-slate-400">Selected items</div>
@@ -901,6 +921,8 @@
       const modalTotal = document.getElementById("booking-confirmation-total");
       const modalWarning = document.getElementById("booking-confirmation-warning");
       const modalWarningText = document.getElementById("booking-confirmation-warning-text");
+      const modalTurnaroundWarning = document.getElementById("booking-confirmation-turnaround-warning");
+      const modalTurnaroundWarningText = document.getElementById("booking-confirmation-turnaround-warning-text");
       const generalError = document.getElementById("booking-form-general-error");
       const newCustomerToggle = document.getElementById("create_new_customer");
       const newCustomerToggleTrack = document.getElementById("create-new-customer-track");
@@ -1082,6 +1104,8 @@
               setupFee,
               isTent: input.dataset.isTent === "true",
               usesCustomPrice: Boolean(hasCustomPrice),
+              strictAvailable: parseInt(input.dataset.strictAvailable || "0", 10) || 0,
+              turnaroundAvailable: parseInt(input.dataset.turnaroundAvailable || "0", 10) || 0,
             };
           })
           .filter(Boolean);
@@ -1118,6 +1142,12 @@
           ? selectedItems.reduce((sum, item) => sum + ((item.isTent ? item.setupFee : 0) * item.qty), 0)
           : 0;
         const total = hasBookingOverride ? bookingOverride : rental + setup + deliveryFee;
+        const turnaroundSelections = selectedItems
+          .map((item) => ({
+            name: item.name,
+            turnaroundQty: Math.max(item.qty - item.strictAvailable, 0),
+          }))
+          .filter((item) => item.turnaroundQty > 0);
 
         return {
           selectedItems,
@@ -1136,6 +1166,7 @@
           hasBookingOverride,
           bookingOverride,
           customerCollision,
+          turnaroundSelections,
         };
       };
 
@@ -1293,6 +1324,25 @@
           }
           if (modalWarningText) {
             modalWarningText.textContent = "";
+          }
+        }
+
+        if (state.turnaroundSelections.length) {
+          if (modalTurnaroundWarning) {
+            modalTurnaroundWarning.classList.remove("hidden");
+          }
+          if (modalTurnaroundWarningText) {
+            const selectionSummary = state.turnaroundSelections
+              .map((item) => `${item.name} (${item.turnaroundQty})`)
+              .join(", ");
+            modalTurnaroundWarningText.textContent = `This admin booking uses same-day turnaround availability for ${selectionSummary}. These items become free on ${form.querySelector('input[name="start_date"]').value} and the exact assigned SKUs will be listed after save.`;
+          }
+        } else {
+          if (modalTurnaroundWarning) {
+            modalTurnaroundWarning.classList.add("hidden");
+          }
+          if (modalTurnaroundWarningText) {
+            modalTurnaroundWarningText.textContent = "";
           }
         }
 

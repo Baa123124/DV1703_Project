@@ -26,6 +26,7 @@ from .sql import (
     # booking
     SQL_AVAILABLE_CATEGORIES,
     SQL_FIND_CATEGORY_RENTAL_PRICING,
+    SQL_CREATE_BOOKING,
     SQL_CREATE_BOOKING_WITH_ALLOCATIONS,
 
     # items
@@ -62,7 +63,7 @@ from .sql import (
     SQL_CANCEL_BOOKING,
     SQL_DELETE_BOOKING,
     SQL_UPDATE_BOOKING_ADMIN_FIELDS,
-    SQL_BOOKING_REALLOCATION_CANDIDATES,
+    SQL_BOOKING_ALLOCATION_CANDIDATES,
     SQL_DELETE_BOOKING_ITEMS_FOR_BOOKING,
     SQL_INSERT_BOOKING_ITEM,
 )
@@ -184,6 +185,131 @@ def _build_booking_item_summary(items):
     return summary_rows
 
 
+def _query_available_categories(start_date: str, end_date: str):
+    return query(SQL_AVAILABLE_CATEGORIES, (start_date, end_date))
+
+
+def _load_booking_allocation_candidates(
+    cur,
+    category_id: int,
+    start_date: str,
+    end_date: str,
+    *,
+    current_booking_id=None,
+):
+    cur.execute(
+        SQL_BOOKING_ALLOCATION_CANDIDATES,
+        (current_booking_id, start_date, end_date, category_id),
+    )
+    return cur.fetchall()
+
+
+def _format_turnaround_item_labels(item_labels):
+    labels = [label for label in dict.fromkeys(item_labels) if label]
+    return ", ".join(labels)
+
+
+def _create_admin_booking_with_allocations(
+    cur,
+    *,
+    customer_id,
+    start_date: str,
+    end_date: str,
+    selections,
+    include_delivery: bool,
+    delivery_fee,
+    include_setup_service: bool,
+    booking_custom_total_price,
+    booking_custom_price_note,
+    booking_note,
+    custom_total_prices,
+    custom_price_notes,
+    category_context_by_id,
+):
+    cur.execute(
+        SQL_CREATE_BOOKING,
+        (
+            customer_id,
+            start_date,
+            end_date,
+            include_delivery,
+            delivery_fee,
+            include_setup_service,
+            booking_custom_total_price,
+            booking_custom_price_note,
+            booking_note,
+            None,
+        ),
+    )
+    booking_id = cur.fetchone()["id"]
+
+    turnaround_item_labels = []
+    rental_days = (date.fromisoformat(end_date) - date.fromisoformat(start_date)).days + 1
+
+    for idx, (category_id, qty) in enumerate(selections):
+        category_context = category_context_by_id[category_id]
+
+        cur.execute(SQL_FIND_CATEGORY_RENTAL_PRICING, (category_id, rental_days))
+        pricing_row = cur.fetchone()
+
+        custom_total_price = custom_total_prices[idx]
+        custom_price_note = custom_price_notes[idx]
+
+        if pricing_row:
+            rental_period_id = pricing_row["rental_period_id"]
+            quoted_period_label = pricing_row["period_label"]
+            quoted_period_price = pricing_row["period_price"]
+        else:
+            if custom_total_price is None and booking_custom_total_price is None:
+                raise ValueError(
+                    f'{category_context["display_name"]} needs a custom price because no standard price matches the selected dates, unless you set a booking total override.'
+                )
+            rental_period_id = None
+            quoted_period_label = None
+            quoted_period_price = None
+
+        setup_service_fee = (
+            category_context["setup_service_fee"]
+            if include_setup_service and category_context["is_tent"]
+            else None
+        )
+
+        candidates = _load_booking_allocation_candidates(
+            cur,
+            category_id,
+            start_date,
+            end_date,
+        )
+        chosen_candidates = candidates[:qty]
+
+        if len(chosen_candidates) < qty:
+            raise ValueError(
+                f'Cannot place booking because only {len(chosen_candidates)} of {qty} items are available in "{category_context["display_name"]}".'
+            )
+
+        for candidate in chosen_candidates:
+            cur.execute(
+                SQL_INSERT_BOOKING_ITEM,
+                (
+                    booking_id,
+                    candidate["item_id"],
+                    rental_period_id,
+                    quoted_period_label,
+                    quoted_period_price,
+                    setup_service_fee,
+                    custom_total_price,
+                    custom_price_note,
+                    None,
+                ),
+            )
+            if candidate["is_turnaround"]:
+                turnaround_item_labels.append(
+                    f'{category_context["display_name"]} ({candidate["sku"]})'
+                )
+
+    return booking_id, turnaround_item_labels
+
+
 def _reallocate_booking_items_for_dates(
     cur,
     booking_id: int,
@@ -196,7 +322,7 @@ def _reallocate_booking_items_for_dates(
     cur.execute(SQL_BOOKING_ITEMS, (booking_id,))
     current_items = cur.fetchall()
     if not current_items:
-        return 0, 0
+        return 0, 0, []
 
     rows_by_category = {}
     for row in current_items:
@@ -204,6 +330,7 @@ def _reallocate_booking_items_for_dates(
 
     reassigned_rows = []
     moved_rows_with_metadata = 0
+    turnaround_item_labels = []
     rental_days = (date.fromisoformat(end_date) - date.fromisoformat(start_date)).days + 1
     pricing_by_category = {}
 
@@ -215,13 +342,16 @@ def _reallocate_booking_items_for_dates(
         cur.execute(SQL_FIND_CATEGORY_RENTAL_PRICING, (category_id, rental_days))
         pricing_by_category[category_id] = cur.fetchone()
 
-        cur.execute(
-            SQL_BOOKING_REALLOCATION_CANDIDATES,
-            (category_id, booking_id, booking_id, start_date, end_date),
+        candidates = _load_booking_allocation_candidates(
+            cur,
+            category_id,
+            start_date,
+            end_date,
+            current_booking_id=booking_id,
         )
-        candidates = cur.fetchall()
         candidates.sort(
             key=lambda candidate: (
+                1 if candidate["is_turnaround"] else 0,
                 0 if candidate["item_id"] in current_item_ids else 1,
                 candidate["item_id"],
             )
@@ -234,13 +364,14 @@ def _reallocate_booking_items_for_dates(
                 f'Cannot move booking to these dates because only {len(chosen_candidates)} of {needed_count} items are available in "{display_name}".'
             )
 
-        chosen_ids = {candidate["item_id"] for candidate in chosen_candidates}
+        candidate_by_item_id = {candidate["item_id"]: candidate for candidate in chosen_candidates}
+        chosen_ids = set(candidate_by_item_id)
         kept_ids = set()
         pending_rows = []
 
         for row in category_rows:
             if row["item_id"] in chosen_ids and row["item_id"] not in kept_ids:
-                reassigned_rows.append((row, row["item_id"]))
+                reassigned_rows.append((row, row["item_id"], candidate_by_item_id[row["item_id"]]))
                 kept_ids.add(row["item_id"])
             else:
                 pending_rows.append(row)
@@ -252,12 +383,12 @@ def _reallocate_booking_items_for_dates(
         ]
 
         for row, new_item_id in zip(pending_rows, remaining_ids):
-            reassigned_rows.append((row, new_item_id))
+            reassigned_rows.append((row, new_item_id, candidate_by_item_id[new_item_id]))
 
     cur.execute(SQL_DELETE_BOOKING_ITEMS_FOR_BOOKING, (booking_id,))
 
     reallocated_count = 0
-    for row, new_item_id in reassigned_rows:
+    for row, new_item_id, candidate in reassigned_rows:
         pricing_row = pricing_by_category[row["category_id"]]
 
         if pricing_row:
@@ -294,6 +425,8 @@ def _reallocate_booking_items_for_dates(
                 row["line_note"],
             ),
         )
+        if candidate["is_turnaround"]:
+            turnaround_item_labels.append(f'{row["display_name"]} ({candidate["sku"]})')
         if row["item_id"] != new_item_id:
             reallocated_count += 1
             if (
@@ -303,7 +436,7 @@ def _reallocate_booking_items_for_dates(
             ):
                 moved_rows_with_metadata += 1
 
-    return reallocated_count, moved_rows_with_metadata
+    return reallocated_count, moved_rows_with_metadata, turnaround_item_labels
 
 
 def _collect_category_period_prices_from_form():
@@ -362,12 +495,7 @@ def home():
     customers = None
 
     if start and end:
-        # SQL_AVAILABLE_CATEGORIES expects:
-        # 1) end_date
-        # 2) start_date
-        # 3) end_date
-        # 4) start_date
-        categories = query(SQL_AVAILABLE_CATEGORIES, (end, start, start, end))
+        categories = _query_available_categories(start, end)
 
         if role == "admin":
             customers = query(SQL_LIST_CUSTOMERS)
@@ -503,18 +631,30 @@ def booking_create_from_home():
     category_ids = [cid for cid, _ in selections]
     qtys = [qty for _, qty in selections]
 
-    visible_categories = query(SQL_AVAILABLE_CATEGORIES, (end, start, start, end))
+    visible_categories = _query_available_categories(start, end)
     visible_by_id = {row["id"]: row for row in visible_categories}
 
     for idx, cat_id in enumerate(category_ids):
         cat_row = visible_by_id.get(cat_id)
+        requested_qty = qtys[idx]
+        allowed_items = (
+            cat_row["admin_available_items"]
+            if role == "admin"
+            else cat_row["available_items"]
+        ) if cat_row else 0
 
         if not cat_row:
             flash(f"Category {cat_id} is no longer available.", "error")
             return redirect(url_for("routes.home", start_date=start, end_date=end))
 
-        if cat_row["available_items"] <= 0:
+        if allowed_items <= 0:
             flash(f"{cat_row['display_name']} has no available items.", "error")
+            return redirect(url_for("routes.home", start_date=start, end_date=end))
+        if requested_qty > allowed_items:
+            flash(
+                f'{cat_row["display_name"]} only has {allowed_items} item{"s" if allowed_items != 1 else ""} available for these dates.',
+                "error",
+            )
             return redirect(url_for("routes.home", start_date=start, end_date=end))
 
         if role != "admin" and not cat_row["has_standard_price"]:
@@ -562,27 +702,24 @@ def booking_create_from_home():
 
                     effective_customer_id = customer["id"]
 
-                cur.execute(
-                    SQL_CREATE_BOOKING_WITH_ALLOCATIONS,
-                    (
-                        effective_customer_id,
-                        start,
-                        end,
-                        category_ids,
-                        qtys,
-                        include_delivery,
-                        delivery_fee,
-                        include_setup_service,
-                        booking_custom_total_price,
-                        booking_custom_price_note,
-                        booking_note,
-                        custom_total_prices,
-                        custom_price_notes,
-                    ),
+                return _create_admin_booking_with_allocations(
+                    cur,
+                    customer_id=effective_customer_id,
+                    start_date=start,
+                    end_date=end,
+                    selections=selections,
+                    include_delivery=include_delivery,
+                    delivery_fee=delivery_fee,
+                    include_setup_service=include_setup_service,
+                    booking_custom_total_price=booking_custom_total_price,
+                    booking_custom_price_note=booking_custom_price_note,
+                    booking_note=booking_note,
+                    custom_total_prices=custom_total_prices,
+                    custom_price_notes=custom_price_notes,
+                    category_context_by_id=visible_by_id,
                 )
-                return cur.fetchone()
 
-            row = tx(work)
+            booking_id, turnaround_item_labels = tx(work)
         else:
             row = query(
                 SQL_CREATE_BOOKING_WITH_ALLOCATIONS,
@@ -604,9 +741,15 @@ def booking_create_from_home():
                 one=True,
                 commit=True,
             )
+            booking_id = row["booking_id"]
+            turnaround_item_labels = []
 
-        booking_id = row["booking_id"]
         flash(f"Booking created (id={booking_id}).", "success")
+        if turnaround_item_labels:
+            flash(
+                f"Warning: same-day turnaround items were allocated for this admin booking: {_format_turnaround_item_labels(turnaround_item_labels)}.",
+                "warning",
+            )
         return redirect(url_for("routes.booking_detail", booking_id=booking_id))
     except Exception as e:
         flash(f"Could not place booking: {str(e)}", "error")
@@ -1238,7 +1381,7 @@ def admin_booking_edit_save(booking_id: int):
             )
 
             if status == "cancelled":
-                return 0, 0
+                return 0, 0, []
 
             return _reallocate_booking_items_for_dates(
                 cur,
@@ -1249,9 +1392,9 @@ def admin_booking_edit_save(booking_id: int):
                 booking_has_total_override=custom_total_price is not None,
             )
 
-        reallocated_count, metadata_warning_count = tx(work)
+        reallocated_count, metadata_warning_count, turnaround_item_labels = tx(work)
 
-        if reallocated_count or metadata_warning_count:
+        if reallocated_count or metadata_warning_count or turnaround_item_labels:
             print(
                 "[booking-reallocation]",
                 {
@@ -1260,6 +1403,7 @@ def admin_booking_edit_save(booking_id: int):
                     "end_date": end_date,
                     "reallocated_count": reallocated_count,
                     "metadata_warning_count": metadata_warning_count,
+                    "turnaround_item_labels": turnaround_item_labels,
                 },
             )
 
@@ -1273,6 +1417,11 @@ def admin_booking_edit_save(booking_id: int):
         if metadata_warning_count:
             flash(
                 f'Review {metadata_warning_count} reallocated item{"s" if metadata_warning_count != 1 else ""}: existing line notes or custom pricing were kept on the reassigned booking line.',
+                "warning",
+            )
+        if turnaround_item_labels:
+            flash(
+                f"Same-day turnaround items are now allocated on this booking: {_format_turnaround_item_labels(turnaround_item_labels)}.",
                 "warning",
             )
         return redirect(url_for("routes.booking_detail", booking_id=booking_id))

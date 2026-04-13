@@ -98,12 +98,21 @@ WHERE rental_period_id = %s;
 
 # Booking: category availability + matching rental price for requested date range
 SQL_AVAILABLE_CATEGORIES = """
-WITH rental_input AS (
-  SELECT (%s::date - %s::date + 1) AS rental_days
+WITH request_window AS (
+  SELECT
+    base.requested_start,
+    base.requested_end,
+    (base.requested_end - base.requested_start + 1) AS rental_days
+  FROM (
+    SELECT
+      %s::date AS requested_start,
+      %s::date AS requested_end
+  ) base
 ),
-available_items AS (
+strict_available_items AS (
   SELECT i.id, i.category_id
   FROM items i
+  CROSS JOIN request_window rw
   WHERE i.is_active = TRUE
     AND NOT EXISTS (
       SELECT 1
@@ -111,8 +120,33 @@ available_items AS (
       JOIN bookings b ON b.id = bi.booking_id
       WHERE bi.item_id = i.id
         AND b.status <> 'cancelled'
-        AND %s <= b.end_date
-        AND %s >= b.start_date
+        AND rw.requested_start <= b.end_date
+        AND rw.requested_end >= b.start_date
+    )
+),
+turnaround_available_items AS (
+  SELECT i.id, i.category_id
+  FROM items i
+  CROSS JOIN request_window rw
+  WHERE i.is_active = TRUE
+    AND EXISTS (
+      SELECT 1
+      FROM booking_items bi
+      JOIN bookings b ON b.id = bi.booking_id
+      WHERE bi.item_id = i.id
+        AND b.status <> 'cancelled'
+        AND rw.requested_start <= b.end_date
+        AND rw.requested_end >= b.start_date
+    )
+    AND NOT EXISTS (
+      SELECT 1
+      FROM booking_items bi
+      JOIN bookings b ON b.id = bi.booking_id
+      WHERE bi.item_id = i.id
+        AND b.status <> 'cancelled'
+        AND rw.requested_start <= b.end_date
+        AND rw.requested_end >= b.start_date
+        AND b.end_date <> rw.requested_start
     )
 ),
 matching_period AS (
@@ -130,8 +164,8 @@ matching_period AS (
     ) AS rn
   FROM category_rental_period_prices crpp
   JOIN rental_periods rp ON rp.id = crpp.rental_period_id
-  CROSS JOIN rental_input ri
-  WHERE ri.rental_days BETWEEN rp.min_days AND rp.max_days
+  CROSS JOIN request_window rw
+  WHERE rw.rental_days BETWEEN rp.min_days AND rp.max_days
 )
 SELECT
   c.id,
@@ -157,10 +191,14 @@ SELECT
   fc.weight_kg,
   fc.notes,
 
-  COUNT(ai.id) AS available_items
+  COUNT(DISTINCT sai.id) AS available_items,
+  COUNT(DISTINCT tai.id) AS same_day_turnaround_items,
+  COUNT(DISTINCT sai.id) + COUNT(DISTINCT tai.id) AS admin_available_items
 FROM categories c
-LEFT JOIN available_items ai
-  ON ai.category_id = c.id
+LEFT JOIN strict_available_items sai
+  ON sai.category_id = c.id
+LEFT JOIN turnaround_available_items tai
+  ON tai.category_id = c.id
 LEFT JOIN tent_categories tc
   ON tc.category_id = c.id
 LEFT JOIN furnishing_categories fc
@@ -175,7 +213,7 @@ GROUP BY
   tc.setup_service_fee, tc.packed_weight_kg, tc.floor_area_m2,
   fc.category_id, fc.furnishing_kind, fc.weight_kg, fc.notes
 ORDER BY
-  (COUNT(ai.id) = 0),
+  (COUNT(DISTINCT sai.id) = 0),
   (mp.rental_period_id IS NULL),
   (tc.category_id IS NOT NULL) DESC,
   c.display_name;
@@ -761,18 +799,35 @@ WHERE id = %s
   AND status = 'cancelled';
 """
 
-SQL_BOOKING_REALLOCATION_CANDIDATES = """
+SQL_BOOKING_ALLOCATION_CANDIDATES = """
+WITH request_window AS (
+  SELECT
+    %s::int AS current_booking_id,
+    %s::date AS requested_start,
+    %s::date AS requested_end
+)
 SELECT
   i.id AS item_id,
-  i.sku
+  i.sku,
+  EXISTS (
+    SELECT 1
+    FROM booking_items bi
+    JOIN bookings b ON b.id = bi.booking_id
+    WHERE bi.item_id = i.id
+      AND (rw.current_booking_id IS NULL OR bi.booking_id <> rw.current_booking_id)
+      AND b.status <> 'cancelled'
+      AND rw.requested_start <= b.end_date
+      AND rw.requested_end >= b.start_date
+  ) AS is_turnaround
 FROM items i
+CROSS JOIN request_window rw
 WHERE i.category_id = %s
   AND (
     i.is_active = TRUE
     OR EXISTS (
       SELECT 1
       FROM booking_items current_bi
-      WHERE current_bi.booking_id = %s
+      WHERE current_bi.booking_id = rw.current_booking_id
         AND current_bi.item_id = i.id
     )
   )
@@ -781,13 +836,14 @@ WHERE i.category_id = %s
     FROM booking_items bi
     JOIN bookings b ON b.id = bi.booking_id
     WHERE bi.item_id = i.id
-      AND bi.booking_id <> %s
+      AND (rw.current_booking_id IS NULL OR bi.booking_id <> rw.current_booking_id)
       AND b.status <> 'cancelled'
-      AND %s <= b.end_date
-      AND %s >= b.start_date
+      AND rw.requested_start <= b.end_date
+      AND rw.requested_end >= b.start_date
+      AND b.end_date <> rw.requested_start
   )
-ORDER BY i.id
-FOR UPDATE SKIP LOCKED;
+ORDER BY is_turnaround, i.id
+FOR UPDATE OF i SKIP LOCKED;
 """
 
 SQL_BOOKING_ITEM_DATE_CONFLICT = """
