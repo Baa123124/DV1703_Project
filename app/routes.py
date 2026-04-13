@@ -30,7 +30,7 @@ from .sql import (
     SQL_LIST_CATEGORIES_FOR_DROPDOWN,
     SQL_GET_ITEM_FOR_EDIT,
     SQL_UPDATE_ITEM,
-    SQL_ADD_ITEM_UNIT,
+    SQL_CREATE_ITEM,
     SQL_ITEM_HAS_ACTIVE_OR_FUTURE_BOOKING,
     SQL_DELETE_BOOKING_ITEMS_FOR_ITEM,
     SQL_DELETE_ITEM,
@@ -561,7 +561,7 @@ def admin_item_new():
 
     try:
         cat_id_int = int(category_id)
-        row = query(SQL_ADD_ITEM_UNIT, (cat_id_int, sku, is_active), one=True, commit=True)
+        row = query(SQL_CREATE_ITEM, (cat_id_int, sku, is_active), one=True, commit=True)
         flash(f"Item created (item_id={row['new_item_id']}).", "success")
         return redirect(url_for("routes.admin_items"))
     except Exception as e:

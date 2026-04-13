@@ -7,9 +7,9 @@
       <div class="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-white/80 px-3 py-1 text-xs font-medium uppercase tracking-[0.2em] text-sky-700">
         Inventory Control
       </div>
-      <h1 class="mt-4 text-3xl font-semibold tracking-tight text-slate-900">Add unit</h1>
+      <h1 class="mt-4 text-3xl font-semibold tracking-tight text-slate-900">Add item</h1>
       <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-        Add a new physical inventory unit to an existing category without changing that category's pricing or details.
+        Add a new physical inventory item to an existing category without changing that category's pricing or details.
       </p>
     </div>
   </div>
@@ -31,7 +31,7 @@
       <div>
         <label class="text-sm font-medium text-slate-700" for="sku">SKU</label>
         <input id="sku" name="sku" required placeholder="e.g. FURN-CHAIR-07" class="mt-1 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 shadow-sm transition focus:border-sky-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-sky-100">
-        <p class="mt-2 text-xs text-slate-500">Must be unique for each physical unit.</p>
+        <p class="mt-2 text-xs text-slate-500">Must be unique for each physical item.</p>
       </div>
 
       <label class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -43,7 +43,7 @@
 
       <div class="flex flex-wrap items-center gap-3">
         <button class="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-5 py-3 text-sm font-medium text-white transition hover:bg-sky-700">
-          Create unit
+          Create item
         </button>
         <a class="inline-flex items-center justify-center rounded-2xl border border-slate-300 px-5 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50" href="{{ url_for('routes.admin_items') }}">
           Cancel

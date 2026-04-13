@@ -190,7 +190,7 @@ def replace_category_period_prices(conn, category_id: int, rows: list[tuple[int,
         set_category_period_price(conn, category_id, rental_period_id, price, sort_order)
 
 
-def insert_units(conn, category_id: int, sku_prefix: str, count: int):
+def insert_items(conn, category_id: int, sku_prefix: str, count: int):
     with conn.cursor() as cur:
         for n in range(1, count + 1):
             sku = f"{sku_prefix}-{n:02d}"
@@ -237,7 +237,7 @@ def main():
                     (rp_4_7, Decimal("95"), 2),
                 ],
             )
-            insert_units(conn, bord, "FURN-BORD", 16)
+            insert_items(conn, bord, "FURN-BORD", 16)
 
             stolar_premium = upsert_category(conn, "Stolar premium")
             upsert_furn_category(conn, stolar_premium, "chair_premium", None, "Premiumstolar per styck")
@@ -250,7 +250,7 @@ def main():
                     (rp_4_7, Decimal("25"), 2),
                 ],
             )
-            insert_units(conn, stolar_premium, "FURN-STOL-PREMIUM", 60)
+            insert_items(conn, stolar_premium, "FURN-STOL-PREMIUM", 60)
 
             stolar_standard = upsert_category(conn, "Stolar standard")
             upsert_furn_category(conn, stolar_standard, "chair_standard", None, "Standardstolar per styck")
@@ -263,7 +263,7 @@ def main():
                     (rp_4_7, Decimal("25"), 2),
                 ],
             )
-            insert_units(conn, stolar_standard, "FURN-STOL-STANDARD", 30)
+            insert_items(conn, stolar_standard, "FURN-STOL-STANDARD", 30)
 
             bankset_stor = upsert_category(conn, "Bänkset stor")
             upsert_furn_category(conn, bankset_stor, "bench_set_large", None, "Perfekt för större grupper")
@@ -276,7 +276,7 @@ def main():
                     (rp_4_7, Decimal("319"), 2),
                 ],
             )
-            insert_units(conn, bankset_stor, "FURN-BANKSET-STOR", 13)
+            insert_items(conn, bankset_stor, "FURN-BANKSET-STOR", 13)
 
             bankset_sma = upsert_category(conn, "Bänkset små")
             upsert_furn_category(conn, bankset_sma, "bench_set_small", None, "Mindre bänkset")
@@ -289,7 +289,7 @@ def main():
                     (rp_4_7, Decimal("319"), 2),
                 ],
             )
-            insert_units(conn, bankset_sma, "FURN-BANKSET-SMA", 10)
+            insert_items(conn, bankset_sma, "FURN-BANKSET-SMA", 10)
 
             ljusslinga_10m = upsert_category(conn, "Ljusslinga 10m")
             upsert_furn_category(conn, ljusslinga_10m, "light_string_10m", None, "Ljusslinga 10 meter")
@@ -302,7 +302,7 @@ def main():
                     (rp_4_7, Decimal("399"), 2),
                 ],
             )
-            insert_units(conn, ljusslinga_10m, "FURN-LJUSSLINGA-10M", 4)
+            insert_items(conn, ljusslinga_10m, "FURN-LJUSSLINGA-10M", 4)
 
             ljusslinga_15m = upsert_category(conn, "Ljusslinga 15m")
             upsert_furn_category(conn, ljusslinga_15m, "light_string_15m", None, "Ljusslinga 15 meter")
@@ -315,7 +315,7 @@ def main():
                     (rp_4_7, Decimal("399"), 2),
                 ],
             )
-            insert_units(conn, ljusslinga_15m, "FURN-LJUSSLINGA-15M", 1)
+            insert_items(conn, ljusslinga_15m, "FURN-LJUSSLINGA-15M", 1)
 
             # Tents - exactly one of each
             tent_3x3 = upsert_category(conn, "Tält 3×3 m")
@@ -337,7 +337,7 @@ def main():
                     (rp_6_7, Decimal("379"), 2),
                 ],
             )
-            insert_units(conn, tent_3x3, "TENT-3X3", 1)
+            insert_items(conn, tent_3x3, "TENT-3X3", 1)
 
             tent_5x3 = upsert_category(conn, "Tält 5×3 m")
             upsert_tent_category(
@@ -358,7 +358,7 @@ def main():
                     (rp_6_7, Decimal("1899"), 2),
                 ],
             )
-            insert_units(conn, tent_5x3, "TENT-5X3", 1)
+            insert_items(conn, tent_5x3, "TENT-5X3", 1)
 
             tent_6x4 = upsert_category(conn, "Tält 6×4 m")
             upsert_tent_category(
@@ -379,7 +379,7 @@ def main():
                     (rp_6_7, Decimal("2499"), 2),
                 ],
             )
-            insert_units(conn, tent_6x4, "TENT-6X4", 1)
+            insert_items(conn, tent_6x4, "TENT-6X4", 1)
 
             tent_8x4 = upsert_category(conn, "Tält 8×4 m")
             upsert_tent_category(
@@ -400,7 +400,7 @@ def main():
                     (rp_6_7, Decimal("2199"), 2),
                 ],
             )
-            insert_units(conn, tent_8x4, "TENT-8X4", 1)
+            insert_items(conn, tent_8x4, "TENT-8X4", 1)
 
             tent_5x10 = upsert_category(conn, "Tält 5×10 m")
             upsert_tent_category(
@@ -421,7 +421,7 @@ def main():
                     (rp_6_7, Decimal("3299"), 2),
                 ],
             )
-            insert_units(conn, tent_5x10, "TENT-5X10", 1)
+            insert_items(conn, tent_5x10, "TENT-5X10", 1)
 
             tent_6x6 = upsert_category(conn, "Tält 6×6 m")
             upsert_tent_category(
@@ -442,7 +442,7 @@ def main():
                     (rp_6_7, Decimal("2999"), 2),
                 ],
             )
-            insert_units(conn, tent_6x6, "TENT-6X6", 1)
+            insert_items(conn, tent_6x6, "TENT-6X6", 1)
 
             tent_8x5 = upsert_category(conn, "Tält 8×5 m")
             upsert_tent_category(
@@ -463,7 +463,7 @@ def main():
                     (rp_6_7, Decimal("2599"), 2),
                 ],
             )
-            insert_units(conn, tent_8x5, "TENT-8X5", 1)
+            insert_items(conn, tent_8x5, "TENT-8X5", 1)
 
             tent_6x10 = upsert_category(conn, "Tält 6×10 m")
             upsert_tent_category(
@@ -484,7 +484,7 @@ def main():
                     (rp_6_7, Decimal("3999"), 2),
                 ],
             )
-            insert_units(conn, tent_6x10, "TENT-6X10", 1)
+            insert_items(conn, tent_6x10, "TENT-6X10", 1)
 
         print("Seed done.")
     finally:

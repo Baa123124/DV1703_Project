@@ -18,7 +18,7 @@
         <div class="mt-6 grid gap-3 sm:grid-cols-3">
           <div class="rounded-2xl border border-white/80 bg-white/80 p-4 shadow-sm backdrop-blur">
             <div class="text-xs font-medium uppercase tracking-[0.18em] text-slate-400">Availability</div>
-            <div class="mt-2 text-sm font-medium text-slate-800">Only active and free units are shown</div>
+            <div class="mt-2 text-sm font-medium text-slate-800">Only active and free items are shown</div>
           </div>
           <div class="rounded-2xl border border-white/80 bg-white/80 p-4 shadow-sm backdrop-blur">
             <div class="text-xs font-medium uppercase tracking-[0.18em] text-slate-400">Pricing</div>
@@ -173,11 +173,11 @@
                           </td>
 
                           <td class="p-3">
-                            {% if c.available_units == 0 %}
+                            {% if c.available_items == 0 %}
                               <span class="font-medium text-rose-600">None available</span>
                             {% else %}
                               <span class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
-                                {{ c.available_units }} ready
+                                {{ c.available_items }} ready
                               </span>
                             {% endif %}
                           </td>
@@ -186,12 +186,12 @@
                             <input
                               type="number"
                               min="0"
-                              max="{{ c.available_units }}"
+                              max="{{ c.available_items }}"
                               step="1"
                               value="0"
                               name="qty_{{ c.id }}"
                               inputmode="numeric"
-                              {% if c.available_units == 0 or (not c.has_standard_price and role != 'admin') %}disabled{% endif %}
+                              {% if c.available_items == 0 or (not c.has_standard_price and role != 'admin') %}disabled{% endif %}
                               class="w-24 rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 shadow-sm transition focus:border-sky-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-sky-100"
                               oninput="
                                 if (this.value === '') return;
@@ -208,7 +208,7 @@
                                 }
                               "
                             >
-                            {% if c.available_units > 0 and not c.has_standard_price and role == 'admin' %}
+                            {% if c.available_items > 0 and not c.has_standard_price and role == 'admin' %}
                               <div class="mt-2 text-xs font-medium text-amber-700">
                                 Admin can book with custom price
                               </div>
@@ -247,11 +247,11 @@
                                 name="custom_price_{{ c.id }}"
                                 placeholder="{% if c.has_standard_price %}Optional{% else %}Required if booking{% endif %}"
                                 class="w-32 rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 shadow-sm transition focus:border-sky-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-sky-100"
-                                {% if c.available_units == 0 %}disabled{% endif %}
+                                {% if c.available_items == 0 %}disabled{% endif %}
                               >
                               <div class="mt-2 text-xs text-slate-500">
                                 {% if c.has_standard_price %}
-                                  Overrides the standard period price per booked unit.
+                                  Overrides the standard period price per booked item.
                                 {% else %}
                                   Required when no standard price matches these dates.
                                 {% endif %}
@@ -264,7 +264,7 @@
                                 name="custom_price_note_{{ c.id }}"
                                 placeholder="Discount, special period, etc."
                                 class="w-56 rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 shadow-sm transition focus:border-sky-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-sky-100"
-                                {% if c.available_units == 0 %}disabled{% endif %}
+                                {% if c.available_items == 0 %}disabled{% endif %}
                               >
                             </td>
                           {% endif %}

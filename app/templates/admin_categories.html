@@ -10,7 +10,7 @@
         </div>
         <h1 class="mt-4 text-3xl font-semibold tracking-tight text-slate-900 md:text-4xl">Categories</h1>
         <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-          Edit category definitions, unit groupings, and the pricing structure tied to rental periods.
+          Edit category definitions, item groupings, and the pricing structure tied to rental periods.
         </p>
       </div>
 
@@ -31,7 +31,7 @@
 
 <section class="mt-6 rounded-[2rem] border border-slate-200 bg-white shadow-sm">
   <div class="border-b border-slate-200 px-6 py-5 md:px-8">
-    <p class="text-sm text-slate-500">Editing a category affects all units in it and its rental period pricing.</p>
+    <p class="text-sm text-slate-500">Editing a category affects all items in it and its rental period pricing.</p>
   </div>
   <div class="px-6 py-6 md:px-8">
     {% if categories %}
@@ -43,7 +43,7 @@
                 <th class="p-3 text-left font-medium">ID</th>
                 <th class="p-3 text-left font-medium">Name</th>
                 <th class="p-3 text-left font-medium">Type</th>
-                <th class="p-3 text-left font-medium">Units</th>
+                <th class="p-3 text-left font-medium">Items</th>
                 <th class="p-3 text-left font-medium">Details</th>
                 <th class="p-3 text-left font-medium">Pricing</th>
                 <th class="p-3 text-left font-medium">Action</th>
@@ -64,7 +64,7 @@
                       <span class="inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-800">Furnishing</span>
                     {% endif %}
                   </td>
-                  <td class="p-3"><span class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">{{ c.active_units or 0 }}/{{ c.total_units }} active</span></td>
+                  <td class="p-3"><span class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">{{ c.active_items or 0 }}/{{ c.total_items }} active</span></td>
                   <td class="p-3 text-slate-700">
                     {% if c.is_tent %}
                       <div>Capacity: {{ c.capacity }}</div>

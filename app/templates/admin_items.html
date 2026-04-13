@@ -8,14 +8,14 @@
         <div class="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-white/80 px-3 py-1 text-xs font-medium uppercase tracking-[0.2em] text-sky-700">
           Inventory Control
         </div>
-        <h1 class="mt-4 text-3xl font-semibold tracking-tight text-slate-900 md:text-4xl">Units</h1>
+        <h1 class="mt-4 text-3xl font-semibold tracking-tight text-slate-900 md:text-4xl">Items</h1>
         <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-          Manage physical inventory units, their active state, and the category each unit belongs to.
+          Manage physical inventory items, their active state, and the category each item belongs to.
         </p>
       </div>
 
-      <a class="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-sky-700" href="{{ url_for('routes.admin_unit_new_form') }}">
-        Add unit
+      <a class="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-sky-700" href="{{ url_for('routes.admin_item_new_form') }}">
+        Add item
       </a>
     </div>
   </div>
@@ -32,7 +32,7 @@
           <table class="min-w-full text-sm">
             <thead class="bg-slate-900 text-slate-100">
               <tr>
-                <th class="p-3 text-left font-medium">Unit ID</th>
+                <th class="p-3 text-left font-medium">Item ID</th>
                 <th class="p-3 text-left font-medium">SKU</th>
                 <th class="p-3 text-left font-medium">Active</th>
                 <th class="p-3 text-left font-medium">Category</th>
@@ -84,10 +84,10 @@
                   </td>
                   <td class="p-3">
                     <div class="flex flex-wrap items-center gap-2">
-                      <a class="rounded-full border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50" href="{{ url_for('routes.admin_unit_edit_form', item_id=it.id) }}">
+                      <a class="rounded-full border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50" href="{{ url_for('routes.admin_item_edit_form', item_id=it.id) }}">
                         Edit
                       </a>
-                      <form method="post" action="{{ url_for('routes.admin_item_delete', item_id=it.id) }}" onsubmit="return confirm('Delete this unit?');">
+                      <form method="post" action="{{ url_for('routes.admin_item_delete', item_id=it.id) }}" onsubmit="return confirm('Delete this item?');">
                         <button class="rounded-full bg-rose-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-rose-700" type="submit">
                           Delete
                         </button>
@@ -101,7 +101,7 @@
         </div>
       </div>
     {% else %}
-      <div class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-600"><i>No units yet.</i></div>
+      <div class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-600"><i>No items yet.</i></div>
     {% endif %}
   </div>
 </section>

@@ -113,7 +113,7 @@ CREATE TRIGGER prevent_overlapping_category_periods
 BEFORE INSERT OR UPDATE ON category_rental_period_prices
 FOR EACH ROW EXECUTE FUNCTION trg_prevent_overlapping_category_periods();
 
--- ITEMS (physical units)
+-- ITEMS (physical items)
 CREATE TABLE items (
   id SERIAL PRIMARY KEY,
   category_id INT NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
@@ -328,7 +328,7 @@ BEGIN
   END IF;
 END$$;
 
--- stored functions: create (category + subtype) and one physical unit (item)
+-- stored functions: create (category + subtype) and one physical item
 
 CREATE OR REPLACE FUNCTION add_tent_item(
   p_sku VARCHAR,
@@ -624,7 +624,7 @@ BEGIN
 
     IF v_picked_count <> v_qty THEN
       RAISE EXCEPTION
-        'Not enough available units for category %: requested %, got %',
+        'Not enough available items for category %: requested %, got %',
         v_cat, v_qty, v_picked_count;
     END IF;
   END LOOP;
@@ -632,7 +632,7 @@ BEGIN
   RETURN v_booking_id;
 END$$;
 
--- Add a physical unit to an existing category
+-- Add a physical item to an existing category
 CREATE OR REPLACE FUNCTION add_item_unit(
   p_category_id INT,
   p_sku VARCHAR,

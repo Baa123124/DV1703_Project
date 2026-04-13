@@ -246,7 +246,7 @@ WHERE id = %s;
 """
 
 # Item create
-SQL_ADD_ITEM_UNIT = """
+SQL_CREATE_ITEM = """
 SELECT add_item_unit(%s, %s, %s) AS new_item_id;
 """
 
