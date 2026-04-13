@@ -14,6 +14,45 @@ ADMIN_PASSWORD = "DV1703"
 TEMP_USER_EMAIL = "hej.hej@hej.hej"
 TEMP_USER_PASSWORD = "DV1703"
 
+SAMPLE_CUSTOMERS = [
+    {
+        "email": "alice.andersson@example.com",
+        "password": "DV1703",
+        "full_name": "Alice Andersson",
+        "phone": "070-111 11 11",
+    },
+    {
+        "email": "bjorn.berg@example.com",
+        "password": "DV1703",
+        "full_name": "Bjorn Berg",
+        "phone": "070-222 22 22",
+    },
+    {
+        "email": "clara.ceder@example.com",
+        "password": "DV1703",
+        "full_name": "Clara Ceder",
+        "phone": "070-333 33 33",
+    },
+    {
+        "email": "david.dahl@example.com",
+        "password": "DV1703",
+        "full_name": "David Dahl",
+        "phone": "070-444 44 44",
+    },
+    {
+        "email": "elsa.ek@example.com",
+        "password": "DV1703",
+        "full_name": "Elsa Ek",
+        "phone": "070-555 55 55",
+    },
+    {
+        "email": "filip.fors@example.com",
+        "password": "DV1703",
+        "full_name": "Filip Fors",
+        "phone": "070-666 66 66",
+    },
+]
+
 
 def get_conn() -> psycopg.Connection:
     dsn = os.getenv("DATABASE_URL")
@@ -271,6 +310,11 @@ def ensure_sample_booking(
         return cur.fetchone()[0]
 
 
+def create_sample_customer(conn, email: str, password: str, full_name: str, phone: str) -> int:
+    user_id = upsert_user(conn, email, password, "customer")
+    return upsert_customer_for_user(conn, user_id, full_name, email, phone)
+
+
 def main():
     conn = get_conn()
     try:
@@ -285,6 +329,15 @@ def main():
                 TEMP_USER_EMAIL,
                 "070-123 45 67",
             )
+            sample_customer_ids: dict[str, int] = {}
+            for customer in SAMPLE_CUSTOMERS:
+                sample_customer_ids[customer["email"]] = create_sample_customer(
+                    conn,
+                    customer["email"],
+                    customer["password"],
+                    customer["full_name"],
+                    customer["phone"],
+                )
 
             # Shared rental periods
             rp_1_day = upsert_rental_period(conn, "1 dag", 1, 1)
@@ -565,6 +618,68 @@ def main():
                 category_ids=[bankset_sma, bord, stolar_premium, ljusslinga_10m],
                 qtys=[4, 2, 12, 1],
             )
+
+            overlapping_seed_bookings = [
+                {
+                    "customer_id": sample_customer_ids["alice.andersson@example.com"],
+                    "booking_note": "Midsummer overlap 1",
+                    "start_date": date(2026, 6, 20),
+                    "end_date": date(2026, 6, 22),
+                    "category_ids": [tent_5x3, bord, stolar_premium],
+                    "qtys": [1, 3, 16],
+                },
+                {
+                    "customer_id": sample_customer_ids["bjorn.berg@example.com"],
+                    "booking_note": "Midsummer overlap 2",
+                    "start_date": date(2026, 6, 21),
+                    "end_date": date(2026, 6, 23),
+                    "category_ids": [tent_6x4, bankset_stor, ljusslinga_10m],
+                    "qtys": [1, 2, 1],
+                },
+                {
+                    "customer_id": sample_customer_ids["clara.ceder@example.com"],
+                    "booking_note": "Midsummer overlap 3",
+                    "start_date": date(2026, 6, 19),
+                    "end_date": date(2026, 6, 24),
+                    "category_ids": [tent_8x4, bord, stolar_standard],
+                    "qtys": [1, 2, 10],
+                },
+                {
+                    "customer_id": sample_customer_ids["david.dahl@example.com"],
+                    "booking_note": "Midsummer overlap 4",
+                    "start_date": date(2026, 6, 21),
+                    "end_date": date(2026, 6, 25),
+                    "category_ids": [tent_5x10, bankset_sma, ljusslinga_15m],
+                    "qtys": [1, 3, 1],
+                },
+                {
+                    "customer_id": sample_customer_ids["elsa.ek@example.com"],
+                    "booking_note": "Midsummer overlap 5",
+                    "start_date": date(2026, 6, 18),
+                    "end_date": date(2026, 6, 22),
+                    "category_ids": [tent_6x6, bord, stolar_premium],
+                    "qtys": [1, 4, 20],
+                },
+                {
+                    "customer_id": sample_customer_ids["filip.fors@example.com"],
+                    "booking_note": "Midsummer overlap 6",
+                    "start_date": date(2026, 6, 20),
+                    "end_date": date(2026, 6, 23),
+                    "category_ids": [tent_8x5, bankset_stor, stolar_standard],
+                    "qtys": [1, 1, 8],
+                },
+            ]
+
+            for booking in overlapping_seed_bookings:
+                ensure_sample_booking(
+                    conn,
+                    customer_id=booking["customer_id"],
+                    booking_note=booking["booking_note"],
+                    start_date=booking["start_date"],
+                    end_date=booking["end_date"],
+                    category_ids=booking["category_ids"],
+                    qtys=booking["qtys"],
+                )
 
         print("Seed done.")
     finally:
