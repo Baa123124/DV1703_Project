@@ -1,5 +1,6 @@
 import os
 from decimal import Decimal
+from datetime import date
 
 from dotenv import load_dotenv
 import psycopg
@@ -207,14 +208,83 @@ def insert_items(conn, category_id: int, sku_prefix: str, count: int):
             )
 
 
+def ensure_sample_booking(
+    conn,
+    customer_id: int,
+    booking_note: str,
+    start_date: date,
+    end_date: date,
+    category_ids: list[int],
+    qtys: list[int],
+):
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT id
+            FROM bookings
+            WHERE customer_id = %s
+              AND start_date = %s
+              AND end_date = %s
+              AND booking_note = %s
+            LIMIT 1;
+            """,
+            (customer_id, start_date, end_date, booking_note),
+        )
+        existing = cur.fetchone()
+        if existing:
+            return existing[0]
+
+        cur.execute(
+            """
+            SELECT create_booking_with_allocations(
+              %s,
+              %s,
+              %s,
+              %s::int[],
+              %s::int[],
+              %s,
+              %s,
+              %s,
+              %s,
+              %s,
+              %s,
+              %s::numeric(10,2)[],
+              %s::text[]
+            );
+            """,
+            (
+                customer_id,
+                start_date,
+                end_date,
+                category_ids,
+                qtys,
+                True,
+                Decimal("350"),
+                False,
+                None,
+                None,
+                booking_note,
+                None,
+                None,
+            ),
+        )
+        return cur.fetchone()[0]
+
+
 def main():
     conn = get_conn()
     try:
         with conn.transaction():
             # Users / customer
             upsert_user(conn, ADMIN_EMAIL, ADMIN_PASSWORD, "admin")
-            # temp_uid = upsert_user(conn, TEMP_USER_EMAIL, TEMP_USER_PASSWORD, "customer")
-            # upsert_customer_for_user(conn, temp_uid, "Temp Customer", TEMP_USER_EMAIL, None)
+            temp_uid = upsert_user(conn, TEMP_USER_EMAIL, TEMP_USER_PASSWORD, "customer")
+            temp_customer_id = upsert_customer_for_user(
+                conn,
+                temp_uid,
+                "Testkund Demo",
+                TEMP_USER_EMAIL,
+                "070-123 45 67",
+            )
 
             # Shared rental periods
             rp_1_day = upsert_rental_period(conn, "1 dag", 1, 1)
@@ -485,6 +555,16 @@ def main():
                 ],
             )
             insert_items(conn, tent_6x10, "TENT-6X10", 1)
+
+            ensure_sample_booking(
+                conn,
+                customer_id=temp_customer_id,
+                booking_note="Seeded example booking",
+                start_date=date(2026, 6, 12),
+                end_date=date(2026, 6, 14),
+                category_ids=[bankset_sma, bord, stolar_premium, ljusslinga_10m],
+                qtys=[4, 2, 12, 1],
+            )
 
         print("Seed done.")
     finally:

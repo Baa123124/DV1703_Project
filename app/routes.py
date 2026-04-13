@@ -97,6 +97,50 @@ def _to_int_or_none(value):
 def _to_str_or_none(value):
     value = (value or "").strip()
     return value if value != "" else None
+
+
+def _build_booking_item_summary(items):
+    summary_map = {}
+    summary_rows = []
+
+    for item in items:
+        if item.get("is_tent"):
+            type_label = "Tent"
+        elif item.get("is_furnishing"):
+            type_label = "Furnishing"
+        else:
+            type_label = "Item"
+
+        key = (
+            item.get("display_name"),
+            type_label,
+            item.get("quoted_period_label"),
+            item.get("quoted_period_price"),
+            item.get("effective_setup_fee"),
+            item.get("custom_total_price"),
+            item.get("effective_line_total"),
+        )
+
+        if key not in summary_map:
+            summary_map[key] = {
+                "display_name": item.get("display_name"),
+                "type_label": type_label,
+                "quoted_period_label": item.get("quoted_period_label"),
+                "quoted_period_price": item.get("quoted_period_price"),
+                "effective_setup_fee": item.get("effective_setup_fee"),
+                "custom_total_price": item.get("custom_total_price"),
+                "effective_line_total": item.get("effective_line_total"),
+                "quantity": 0,
+                "group_total": 0,
+            }
+            summary_rows.append(summary_map[key])
+
+        summary_map[key]["quantity"] += 1
+        summary_map[key]["group_total"] += item.get("effective_line_total") or 0
+
+    return summary_rows
+
+
 def _collect_category_period_prices_from_form():
     """
     Reads fields in the pattern:
@@ -891,12 +935,14 @@ def booking_detail(booking_id: int):
         return redirect(url_for("routes.home"))
 
     items = query(SQL_BOOKING_ITEMS, (booking_id,))
+    item_summary = _build_booking_item_summary(items)
     total = query(SQL_BOOKING_TOTAL, (booking_id,), one=True)
 
     return render_template(
         "booking_detail.html",
         booking=booking,
         items=items,
+        item_summary=item_summary,
         total=total,
         role=role,
     )
