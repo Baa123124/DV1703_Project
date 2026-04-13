@@ -30,7 +30,26 @@
 
   <div class="px-6 py-6 md:px-8">
     {% if customers %}
-      <div class="overflow-hidden rounded-[1.5rem] border border-slate-200">
+      <div class="grid gap-4 md:hidden">
+        {% for c in customers %}
+          <a href="{{ url_for('routes.customer_detail', customer_id=c.id) }}" class="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4 shadow-sm transition hover:border-sky-200 hover:bg-sky-50/40">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <div class="text-xs font-medium uppercase tracking-[0.18em] text-slate-400">Customer #{{ c.id }}</div>
+                <div class="mt-1 text-lg font-semibold text-slate-900">{{ c.full_name }}</div>
+              </div>
+              <div class="text-xs text-slate-500">{{ c.created_at }}</div>
+            </div>
+            <div class="mt-3 grid gap-2 text-sm text-slate-600">
+              <div>{{ c.email or "No email" }}</div>
+              <div>{{ c.phone or "No phone" }}</div>
+              <div>{{ c.address or "No address" }}</div>
+            </div>
+          </a>
+        {% endfor %}
+      </div>
+
+      <div class="hidden overflow-hidden rounded-[1.5rem] border border-slate-200 md:block">
         <div class="overflow-x-auto">
           <table class="min-w-full text-sm">
             <thead class="bg-slate-900 text-slate-100">

@@ -112,7 +112,98 @@
               <input type="hidden" name="end_date" value="{{ end_date }}">
 
               <div class="overflow-hidden rounded-[1.5rem] border border-slate-200">
-                <div class="overflow-x-auto">
+                <div class="grid gap-4 p-4 md:hidden" data-booking-input-set="mobile">
+                  {% for c in categories %}
+                    <div class="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4 shadow-sm">
+                      <div class="flex items-start justify-between gap-3">
+                        <div>
+                          <div class="font-semibold text-slate-900">{{ c.display_name }}</div>
+                          <div class="mt-1 flex flex-wrap gap-2">
+                            {% if c.is_tent %}
+                              <span class="inline-flex rounded-full bg-sky-100 px-2.5 py-1 text-xs font-medium text-sky-800">Tent</span>
+                            {% endif %}
+                            {% if c.is_furnishing %}
+                              <span class="inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-800">Furnishing</span>
+                            {% endif %}
+                          </div>
+                        </div>
+                        {% if c.available_items == 0 %}
+                          <span class="text-xs font-medium text-rose-600">None available</span>
+                        {% else %}
+                          <span class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">{{ c.available_items }}</span>
+                        {% endif %}
+                      </div>
+
+                      <div class="mt-3 grid gap-3 text-sm text-slate-600">
+                        <div>
+                          <div class="text-xs font-medium uppercase tracking-[0.18em] text-slate-400">Price</div>
+                          {% if c.has_standard_price %}
+                            <div class="mt-1 font-medium text-slate-900">{{ c.quoted_period_price }} kr</div>
+                            <div class="text-xs text-slate-500">{{ c.rental_period_label }} • {{ c.rental_period_min_days }}-{{ c.rental_period_max_days }} days</div>
+                          {% else %}
+                            <div class="mt-1 text-amber-700">Custom admin price required</div>
+                          {% endif %}
+                        </div>
+
+                        <div class="space-y-1">
+                          {% if c.is_tent %}
+                            <div>Capacity: {{ c.capacity }}</div>
+                            <div>Season: {{ c.season_rating }}</div>
+                            <div>Build: {{ c.estimated_build_time_minutes }} min</div>
+                          {% else %}
+                            <div>{{ c.furnishing_kind }}</div>
+                            {% if c.weight_kg %}<div>Weight: {{ c.weight_kg }} kg</div>{% endif %}
+                          {% endif %}
+                        </div>
+
+                        <div>
+                          <label class="text-sm font-medium text-slate-700" for="qty_mobile_{{ c.id }}">Qty</label>
+                          <input
+                            id="qty_mobile_{{ c.id }}"
+                            type="number"
+                            min="0"
+                            max="{{ c.available_items }}"
+                            step="1"
+                            value="0"
+                            name="qty_{{ c.id }}"
+                            inputmode="numeric"
+                            {% if c.available_items == 0 or (not c.has_standard_price and role != 'admin') %}disabled{% endif %}
+                            class="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 shadow-sm transition focus:border-sky-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-sky-100"
+                          >
+                        </div>
+
+                        {% if role == 'admin' %}
+                          <div>
+                            <label class="text-sm font-medium text-slate-700" for="custom_price_mobile_{{ c.id }}">Custom price</label>
+                            <input
+                              id="custom_price_mobile_{{ c.id }}"
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              name="custom_price_{{ c.id }}"
+                              placeholder="{% if c.has_standard_price %}Optional{% else %}Required if booking{% endif %}"
+                              class="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 shadow-sm transition focus:border-sky-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-sky-100"
+                              {% if c.available_items == 0 %}disabled{% endif %}
+                            >
+                          </div>
+                          <div>
+                            <label class="text-sm font-medium text-slate-700" for="custom_note_mobile_{{ c.id }}">Admin note</label>
+                            <input
+                              id="custom_note_mobile_{{ c.id }}"
+                              type="text"
+                              name="custom_price_note_{{ c.id }}"
+                              placeholder="Discount, special period, etc."
+                              class="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 shadow-sm transition focus:border-sky-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-sky-100"
+                              {% if c.available_items == 0 %}disabled{% endif %}
+                            >
+                          </div>
+                        {% endif %}
+                      </div>
+                    </div>
+                  {% endfor %}
+                </div>
+
+                <div class="hidden overflow-x-auto md:block" data-booking-input-set="desktop">
                   <table class="min-w-full text-sm">
                     <thead class="bg-slate-900 text-slate-100">
                       <tr>
@@ -177,7 +268,7 @@
                               <span class="font-medium text-rose-600">None available</span>
                             {% else %}
                               <span class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
-                                {{ c.available_items }} ready
+                                {{ c.available_items }}
                               </span>
                             {% endif %}
                           </td>
@@ -534,6 +625,45 @@
       startInput.addEventListener("change", syncEndDate);
       startInput.addEventListener("input", syncEndDate);
       syncEndDate();
+    })();
+
+    (() => {
+      const mobileQuery = window.matchMedia("(max-width: 767px)");
+      const groups = document.querySelectorAll("[data-booking-input-set]");
+
+      if (!groups.length) {
+        return;
+      }
+
+      const syncBookingInputs = () => {
+        const activeSet = mobileQuery.matches ? "mobile" : "desktop";
+
+        groups.forEach((group) => {
+          const shouldEnable = group.getAttribute("data-booking-input-set") === activeSet;
+          group.querySelectorAll("input, select, textarea").forEach((field) => {
+            if (field.hasAttribute("data-force-enabled")) {
+              return;
+            }
+            field.disabled = !shouldEnable || field.hasAttribute("data-originally-disabled");
+          });
+        });
+      };
+
+      groups.forEach((group) => {
+        group.querySelectorAll("input, select, textarea").forEach((field) => {
+          if (field.disabled) {
+            field.setAttribute("data-originally-disabled", "true");
+          }
+        });
+      });
+
+      if (typeof mobileQuery.addEventListener === "function") {
+        mobileQuery.addEventListener("change", syncBookingInputs);
+      } else if (typeof mobileQuery.addListener === "function") {
+        mobileQuery.addListener(syncBookingInputs);
+      }
+
+      syncBookingInputs();
     })();
   </script>
 {% endblock %}

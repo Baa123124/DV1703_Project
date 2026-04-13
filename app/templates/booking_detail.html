@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="bg-white border rounded-xl p-6 shadow-sm">
-  <div class="flex items-start gap-3">
+  <div class="flex flex-wrap items-start gap-3">
     <div>
       <h2 class="text-xl font-semibold">Booking #{{ booking.id }}</h2>
       <p class="text-sm text-slate-700 mt-2">
@@ -13,7 +13,7 @@
     </div>
 
     {% if role == 'admin' %}
-      <div class="ml-auto flex gap-2">
+      <div class="ml-auto flex w-full flex-wrap gap-2 md:w-auto">
         <a
           class="rounded-lg border px-3 py-2 text-sm hover:bg-slate-50"
           href="{{ url_for('routes.admin_booking_edit_form', booking_id=booking.id) }}"

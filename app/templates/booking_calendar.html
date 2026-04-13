@@ -24,19 +24,103 @@
   <div id="booking-calendar"></div>
 </section>
 
+<style>
+  #booking-calendar .fc .fc-event {
+    border: 0;
+    background: transparent;
+  }
+
+  #booking-calendar .fc .fc-daygrid-event-harness {
+    margin-top: 0.3rem;
+  }
+
+  #booking-calendar .fc-event-main {
+    padding: 0;
+  }
+
+  .booking-event-card {
+    border: 1px solid rgb(186 230 253);
+    border-radius: 0.9rem;
+    background: linear-gradient(135deg, rgb(239 246 255), rgb(248 250 252));
+    box-shadow: 0 8px 18px -14px rgba(15, 23, 42, 0.7);
+    overflow: hidden;
+  }
+
+  .booking-event-card[data-status="confirmed"] {
+    border-color: rgb(167 243 208);
+    background: linear-gradient(135deg, rgb(236 253 245), rgb(248 250 252));
+  }
+
+  .booking-event-card[data-status="cancelled"] {
+    border-color: rgb(254 202 202);
+    background: linear-gradient(135deg, rgb(254 242 242), rgb(248 250 252));
+  }
+
+  .booking-event-ref {
+    display: block;
+    padding: 0.45rem 0.6rem;
+    font-size: 0.74rem;
+    font-weight: 700;
+    color: rgb(15 23 42);
+    text-decoration: none;
+  }
+
+  .booking-event-ref:hover {
+    color: rgb(3 105 161);
+  }
+
+  .booking-event-details {
+    border-top: 1px solid rgba(148, 163, 184, 0.18);
+  }
+
+  .booking-event-details summary {
+    cursor: pointer;
+    list-style: none;
+    padding: 0.35rem 0.6rem 0.5rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: rgb(71 85 105);
+  }
+
+  .booking-event-details summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .booking-event-details[open] summary {
+    color: rgb(15 23 42);
+  }
+
+  .booking-event-meta {
+    display: grid;
+    gap: 0.18rem;
+    padding: 0 0.6rem 0.55rem;
+    font-size: 0.68rem;
+    color: rgb(51 65 85);
+  }
+
+  .booking-event-price {
+    font-weight: 700;
+    color: rgb(15 23 42);
+  }
+</style>
+
 <script id="booking-events-data" type="application/json">
 [
   {% for b in bookings %}
     {
       "id": {{ b.id|tojson }},
-      "title": {{ ("#" ~ b.id ~ " - " ~ (b.full_name or "Unknown customer"))|tojson }},
+      "title": {{ ("Ref #" ~ b.id)|tojson }},
       "start": {{ (b.start_date|string)|tojson }},
       "end": {{ ((b.end_date_plus_one|string) if b.end_date_plus_one is defined else (b.end_date|string))|tojson }},
       "url": {{ url_for('routes.booking_detail', booking_id=b.id)|tojson }},
       "extendedProps": {
         "status": {{ b.status|tojson }},
         "customer": {{ (b.full_name or "")|tojson }},
-        "email": {{ (b.email or "")|tojson }}
+        "email": {{ (b.email or "")|tojson }},
+        "total_cost": {{ b.total_cost|tojson }},
+        "tent_summary": {{ (b.tent_summary or "No tent")|tojson }},
+        "include_delivery": {{ b.include_delivery|tojson }},
+        "include_setup_service": {{ b.include_setup_service|tojson }}
       }
     }{% if not loop.last %},{% endif %}
   {% endfor %}
@@ -66,7 +150,53 @@
         right: "dayGridMonth,timeGridWeek,listMonth"
       },
       events: events,
+      eventContent: function(arg) {
+        const props = arg.event.extendedProps;
+        const wrapper = document.createElement("div");
+        wrapper.className = "booking-event-card";
+        wrapper.dataset.status = props.status || "pending";
+
+        const refLink = document.createElement("a");
+        refLink.className = "booking-event-ref";
+        refLink.href = arg.event.url || "#";
+        refLink.textContent = `Ref #${arg.event.id}`;
+        wrapper.appendChild(refLink);
+
+        const details = document.createElement("details");
+        details.className = "booking-event-details";
+
+        const summary = document.createElement("summary");
+        summary.textContent = "Info";
+        details.appendChild(summary);
+
+        const meta = document.createElement("div");
+        meta.className = "booking-event-meta";
+
+        const price = document.createElement("div");
+        price.className = "booking-event-price";
+        price.textContent = `${props.total_cost} kr`;
+        meta.appendChild(price);
+
+        const tent = document.createElement("div");
+        tent.textContent = props.tent_summary;
+        meta.appendChild(tent);
+
+        const extras = document.createElement("div");
+        const extrasBits = [];
+        if (props.include_setup_service) extrasBits.push("Setup");
+        if (props.include_delivery) extrasBits.push("Delivery");
+        extras.textContent = extrasBits.length ? extrasBits.join(" • ") : "No extras";
+        meta.appendChild(extras);
+
+        details.appendChild(meta);
+        wrapper.appendChild(details);
+
+        return { domNodes: [wrapper] };
+      },
       eventClick: function(info) {
+        if (info.jsEvent.target.closest("summary")) {
+          return;
+        }
         info.jsEvent.preventDefault();
         if (info.event.url) {
           window.location.href = info.event.url;
