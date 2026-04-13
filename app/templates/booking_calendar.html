@@ -216,6 +216,7 @@
     const popupExtrasEl = document.getElementById("calendar-popup-extras");
     const popupOpenEl = document.getElementById("calendar-popup-open");
     const events = JSON.parse(eventsDataEl.textContent);
+    const mobileQuery = window.matchMedia("(max-width: 767px)");
 
     const closePopup = () => {
       popupEl.classList.add("hidden");
@@ -251,6 +252,20 @@
       }
     });
 
+    const getHeaderToolbar = () => (
+      mobileQuery.matches
+        ? {
+            left: "prev,next",
+            center: "title",
+            right: "dayGridMonth,listMonth"
+          }
+        : {
+            left: "prev,next today",
+            center: "title",
+            right: "dayGridMonth,timeGridWeek,listMonth"
+          }
+    );
+
     const calendar = new FullCalendar.Calendar(calendarEl, {
       initialView: "dayGridMonth",
       height: "auto",
@@ -262,11 +277,7 @@
       eventBackgroundColor: "transparent",
       eventBorderColor: "transparent",
       eventTextColor: "#0f172a",
-      headerToolbar: {
-        left: "prev,next today",
-        center: "title",
-        right: "dayGridMonth,timeGridWeek,listMonth"
-      },
+      headerToolbar: getHeaderToolbar(),
       events: events,
       eventContent: function(arg) {
         const props = arg.event.extendedProps;
@@ -320,6 +331,16 @@
     });
 
     calendar.render();
+
+    const syncResponsiveToolbar = () => {
+      calendar.setOption("headerToolbar", getHeaderToolbar());
+    };
+
+    if (typeof mobileQuery.addEventListener === "function") {
+      mobileQuery.addEventListener("change", syncResponsiveToolbar);
+    } else if (typeof mobileQuery.addListener === "function") {
+      mobileQuery.addListener(syncResponsiveToolbar);
+    }
   });
 </script>
 {% endblock %}
