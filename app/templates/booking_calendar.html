@@ -273,7 +273,11 @@
 
         const name = document.createElement("span");
         name.className = "booking-event-name";
-        name.textContent = props.customer || "Unknown customer";
+        const suffix = props.include_setup_service ? " - M" : (props.include_delivery ? " - U" : "");
+        const tentSuffix = props.tent_summary
+          ? (props.tent_summary === "2+" ? " - (1+ tents)" : ` - ${props.tent_summary}`)
+          : "";
+        name.textContent = `${props.customer || "Unknown customer"}${suffix}${tentSuffix}`;
         textWrap.appendChild(name);
 
         chip.appendChild(textWrap);
