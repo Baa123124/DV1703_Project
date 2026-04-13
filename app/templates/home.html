@@ -1,5 +1,15 @@
 {% extends "base.html" %}
 {% block content %}
+  <style>
+    @supports (-moz-appearance: none) {
+      .booking-final-card {
+        clip-path: inset(0 round 1.5rem);
+        transform: translateZ(0);
+        backface-visibility: hidden;
+      }
+    }
+  </style>
+
   <section class="relative overflow-hidden rounded-[2rem] border border-sky-100 bg-gradient-to-br from-white via-sky-50 to-amber-50 shadow-sm">
     <div class="absolute inset-y-0 right-0 hidden w-1/3 bg-[radial-gradient(circle_at_top,rgba(14,165,233,0.16),transparent_58%)] lg:block"></div>
     <div class="relative grid gap-8 px-6 py-8 md:px-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-end">
@@ -80,8 +90,8 @@
   </section>
 
   {% if categories is not none %}
-    <section class="mt-6 rounded-[2rem] border border-slate-200 bg-white shadow-sm">
-      <div class="border-b border-slate-200 px-6 py-5 md:px-8">
+    <section class="mt-6 overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm">
+      <div class="border-b border-slate-200 bg-gradient-to-r from-white via-slate-50 to-sky-50/60 px-5 py-5 md:px-7">
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div>
             <div class="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">Step 2</div>
@@ -94,9 +104,27 @@
             {{ categories|length }} categories loaded
           </div>
         </div>
+
+        <div class="mt-4 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+          <div class="max-w-xl">
+            <label class="text-sm font-medium text-slate-700" for="category-search-input">Find categories faster</label>
+            <p class="mt-1 text-xs text-slate-500">Filter by category name, type, or visible details without leaving the booking workspace.</p>
+          </div>
+          <div class="flex w-full flex-col gap-3 sm:flex-row lg:max-w-2xl lg:items-center">
+            <input
+              id="category-search-input"
+              type="search"
+              placeholder="Search categories, tents, furnishings, prices..."
+              class="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-slate-900 shadow-sm transition focus:border-sky-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-sky-100"
+            >
+            <div class="inline-flex items-center justify-center rounded-full bg-white px-3 py-2 text-xs font-medium text-slate-500 shadow-sm" id="category-search-count">
+              {{ categories|length }} shown
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div class="px-6 py-6 md:px-8">
+      <div class="px-5 py-5 md:px-7 md:py-6">
         {% if categories|length == 0 %}
           <p class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-600"><i>No categories yet.</i></p>
         {% else %}
@@ -107,14 +135,31 @@
               to place a booking.
             </div>
           {% else %}
-            <form method="post" action="{{ url_for('routes.booking_create_from_home') }}" class="space-y-6">
+            <form
+              method="post"
+              action="{{ url_for('routes.booking_create_from_home') }}"
+              class="space-y-6"
+              id="booking-create-form"
+              data-customer-fallback="{{ ((customers[0].full_name if customers and customers[0] else 'Your account') if role != 'admin' else 'No customer selected')|e }}"
+            >
               <input type="hidden" name="start_date" value="{{ start_date }}">
               <input type="hidden" name="end_date" value="{{ end_date }}">
 
-              <div class="overflow-hidden rounded-[1.5rem] border border-slate-200">
+              <div class="overflow-hidden rounded-[1.5rem] border border-slate-200 bg-slate-50/60">
                 <div class="grid gap-4 p-4 md:hidden" data-booking-input-set="mobile">
                   {% for c in categories %}
-                    <div class="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4 shadow-sm">
+                    <div
+                      class="rounded-[1.4rem] border border-slate-200 bg-white p-4 shadow-sm"
+                      data-category-card
+                      data-search-text="{{ (
+                        c.display_name ~ ' ' ~
+                        ('tent ' if c.is_tent else '') ~
+                        ('furnishing ' if c.is_furnishing else '') ~
+                        (c.furnishing_kind or '') ~ ' ' ~
+                        (c.rental_period_label or '') ~ ' ' ~
+                        (c.notes or '')
+                      )|lower }}"
+                    >
                       <div class="flex items-start justify-between gap-3">
                         <div>
                           <div class="font-semibold text-slate-900">{{ c.display_name }}</div>
@@ -168,6 +213,11 @@
                             name="qty_{{ c.id }}"
                             inputmode="numeric"
                             {% if c.available_items == 0 or (not c.has_standard_price and role != 'admin') %}disabled{% endif %}
+                            data-category-id="{{ c.id }}"
+                            data-category-name="{{ c.display_name }}"
+                            data-standard-price="{{ c.quoted_period_price if c.has_standard_price else '' }}"
+                            data-setup-fee="{{ c.setup_service_fee if c.is_tent else 0 }}"
+                            data-is-tent="{{ 'true' if c.is_tent else 'false' }}"
                             class="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 shadow-sm transition focus:border-sky-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-sky-100"
                           >
                         </div>
@@ -181,6 +231,7 @@
                               min="0"
                               step="0.01"
                               name="custom_price_{{ c.id }}"
+                              data-custom-price-for="{{ c.id }}"
                               placeholder="{% if c.has_standard_price %}Optional{% else %}Required if booking{% endif %}"
                               class="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 shadow-sm transition focus:border-sky-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-sky-100"
                               {% if c.available_items == 0 %}disabled{% endif %}
@@ -223,7 +274,18 @@
 
                     <tbody class="divide-y divide-slate-200 bg-white">
                       {% for c in categories %}
-                        <tr class="align-top transition hover:bg-sky-50/60">
+                        <tr
+                          class="align-top transition hover:bg-sky-50/60"
+                          data-category-row
+                          data-search-text="{{ (
+                            c.display_name ~ ' ' ~
+                            ('tent ' if c.is_tent else '') ~
+                            ('furnishing ' if c.is_furnishing else '') ~
+                            (c.furnishing_kind or '') ~ ' ' ~
+                            (c.rental_period_label or '') ~ ' ' ~
+                            (c.notes or '')
+                          )|lower }}"
+                        >
                           <td class="p-3">
                             <div class="font-medium text-slate-900">{{ c.display_name }}</div>
                             <div class="mt-1 text-xs text-slate-500">Category #{{ c.id }}</div>
@@ -282,6 +344,11 @@
                               value="0"
                               name="qty_{{ c.id }}"
                               inputmode="numeric"
+                              data-category-id="{{ c.id }}"
+                              data-category-name="{{ c.display_name }}"
+                              data-standard-price="{{ c.quoted_period_price if c.has_standard_price else '' }}"
+                              data-setup-fee="{{ c.setup_service_fee if c.is_tent else 0 }}"
+                              data-is-tent="{{ 'true' if c.is_tent else 'false' }}"
                               {% if c.available_items == 0 or (not c.has_standard_price and role != 'admin') %}disabled{% endif %}
                               class="w-24 rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 shadow-sm transition focus:border-sky-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-sky-100"
                               oninput="
@@ -336,6 +403,7 @@
                                 min="0"
                                 step="0.01"
                                 name="custom_price_{{ c.id }}"
+                                data-custom-price-for="{{ c.id }}"
                                 placeholder="{% if c.has_standard_price %}Optional{% else %}Required if booking{% endif %}"
                                 class="w-32 rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 shadow-sm transition focus:border-sky-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-sky-100"
                                 {% if c.available_items == 0 %}disabled{% endif %}
@@ -366,8 +434,8 @@
                 </div>
               </div>
 
-              <div class="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-                <div class="rounded-[1.5rem] border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-5">
+              <div class="grid gap-5 xl:grid-cols-[1.08fr_0.92fr]">
+                <div class="rounded-[1.5rem] border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-4 md:p-5">
                   <div class="flex items-center justify-between gap-3">
                     <div>
                       <h4 class="text-lg font-semibold text-slate-900">Booking options</h4>
@@ -407,22 +475,57 @@
                         <span>
                           <span class="block text-sm font-medium text-slate-900">Include delivery</span>
                           <span class="mt-1 block text-xs leading-5 text-slate-500">
-                            Add a delivery fee for this booking.
+                            449 kr includes the first 10 km. Everything above 10 km adds 5 kr/km.
                           </span>
                         </span>
                       </label>
 
                       <div class="mt-4">
-                        <label class="text-sm font-medium text-slate-700" for="delivery_fee">Delivery fee</label>
+                        <label class="text-sm font-medium text-slate-700" for="delivery_distance_km">Delivery distance (km)</label>
                         <input
-                          id="delivery_fee"
+                          id="delivery_distance_km"
                           type="number"
                           min="0"
-                          step="0.01"
-                          name="delivery_fee"
-                          placeholder="e.g. 449"
-                          class="mt-1 w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 shadow-sm transition focus:border-sky-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-sky-100"
+                          step="0.1"
+                          name="delivery_distance_km"
+                          placeholder="e.g. 18"
+                          disabled
+                          class="mt-1 w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 shadow-sm transition focus:border-sky-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-sky-100 disabled:cursor-not-allowed disabled:opacity-60"
                         >
+                        <p class="mt-2 text-xs text-slate-500">Base price is 449 kr up to 10 km. After that, each extra km adds 5 kr.</p>
+                        {% if role == 'admin' %}
+                          <div class="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-3">
+                            <label class="inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-amber-900">
+                              <input
+                                id="delivery_fee_override_enabled"
+                                type="checkbox"
+                                name="delivery_fee_override_enabled"
+                                value="on"
+                                disabled
+                                class="rounded border-amber-300 text-amber-600 focus:ring-amber-300"
+                              >
+                              <span>Enter custom delivery fee</span>
+                            </label>
+                            <div class="mt-3 hidden" id="delivery-fee-override-fields">
+                              <label class="text-sm font-medium text-amber-950" for="delivery_fee_override">Custom delivery fee</label>
+                              <input
+                                id="delivery_fee_override"
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                name="delivery_fee_override"
+                                placeholder="e.g. 299"
+                                disabled
+                                class="mt-1 w-full rounded-xl border border-amber-200 bg-white px-3 py-2 shadow-sm transition focus:border-amber-400 focus:outline-none focus:ring-4 focus:ring-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                              <p class="mt-2 hidden text-xs font-medium text-rose-600" data-field-error-for="delivery_fee_override"></p>
+                            </div>
+                          </div>
+                        {% endif %}
+                        <div id="delivery-fee-preview" class="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                          Turn on delivery to calculate the fee.
+                        </div>
+                        <p class="mt-2 hidden text-xs font-medium text-rose-600" data-field-error-for="delivery_distance_km"></p>
                       </div>
                     </div>
                   </div>
@@ -474,7 +577,7 @@
                   {% endif %}
                 </div>
 
-                <div class="rounded-[1.5rem] border border-slate-200 bg-slate-900 p-5 text-white shadow-lg shadow-slate-200">
+                <div class="booking-final-card rounded-[1.5rem] border border-slate-200 bg-slate-900 p-5 text-white shadow-lg shadow-slate-200">
                   <div class="flex items-center justify-between gap-3">
                     <div>
                       <h4 class="text-lg font-semibold">Who is this booking for?</h4>
@@ -488,50 +591,48 @@
                   <div class="mt-4">
                     {% if role == 'admin' %}
                       <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
-                        <div class="flex items-start gap-3">
-                          <div class="flex-1">
-                            <label class="text-sm font-medium text-slate-100" for="customer_id">Existing customer</label>
-                            <select
-                              id="customer_id"
-                              name="customer_id"
-                              class="mt-1 w-full rounded-xl border border-white/10 bg-slate-800 px-3 py-2 text-white shadow-sm transition focus:border-sky-400 focus:outline-none focus:ring-4 focus:ring-sky-400/20"
-                            >
-                              <option value="">-- select --</option>
-                              {% for cu in customers %}
-                                <option value="{{ cu.id }}">{{ cu.full_name }} ({{ cu.email }})</option>
-                              {% endfor %}
-                            </select>
+                        <div class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-slate-950/20 px-4 py-3">
+                          <div>
+                            <div class="text-sm font-medium text-white">Create new customer</div>
+                            <div class="mt-1 text-xs text-slate-300">Use a new profile instead of selecting an existing customer.</div>
                           </div>
-
-                          <label class="self-end flex items-center gap-2 rounded-full bg-white/10 px-3 py-2 text-sm text-slate-100">
+                          <label class="inline-flex cursor-pointer items-center gap-3 rounded-full border border-white/10 bg-white/10 px-3 py-2 text-sm font-medium text-slate-100 transition hover:bg-white/15">
                             <input
                               id="create_new_customer"
                               type="checkbox"
                               name="create_new_customer"
                               value="on"
-                              onchange="
-                                const checked = this.checked;
-                                const existing = document.getElementById('customer_id');
-                                const fields = document.querySelectorAll('[data-new-user-field]');
-                                if (existing) {
-                                  existing.disabled = checked;
-                                  if (checked) {
-                                    existing.value = '';
-                                  }
-                                }
-                                fields.forEach((field) => {
-                                  field.disabled = !checked;
-                                  if (!checked) {
-                                    field.value = '';
-                                  }
-                                });
-                              "
+                              class="sr-only"
                             >
-                            <span>Create new customer</span>
+                            <span
+                              id="create-new-customer-track"
+                              class="flex h-6 w-11 items-center justify-start rounded-full bg-slate-700/80 px-1 transition duration-200"
+                            >
+                              <span
+                                id="create-new-customer-knob"
+                                class="h-4 w-4 rounded-full bg-white shadow-sm shadow-slate-950/20 transition duration-200"
+                              ></span>
+                            </span>
+                            <span class="min-w-[2.5rem] text-left" id="create-new-customer-label">Off</span>
                           </label>
                         </div>
 
-                        <div class="mt-4 grid gap-4 md:grid-cols-2">
+                        <div class="mt-4" id="existing-customer-fields">
+                          <label class="text-sm font-medium text-slate-100" for="customer_id">Existing customer</label>
+                          <select
+                            id="customer_id"
+                            name="customer_id"
+                            class="mt-1 w-full rounded-xl border border-white/10 bg-slate-800 px-3 py-2 text-white shadow-sm transition focus:border-sky-400 focus:outline-none focus:ring-4 focus:ring-sky-400/20"
+                          >
+                            <option value="">-- select --</option>
+                            {% for cu in customers %}
+                              <option value="{{ cu.id }}" data-customer-name="{{ cu.full_name }}">{{ cu.full_name }} ({{ cu.email }})</option>
+                            {% endfor %}
+                          </select>
+                          <p class="mt-2 hidden text-xs font-medium text-rose-300" data-field-error-for="customer_id"></p>
+                        </div>
+
+                        <div class="mt-4 hidden grid gap-4 md:grid-cols-2" id="new-customer-fields">
                           <div>
                             <label class="text-sm font-medium text-slate-100" for="new_customer_full_name">Full name</label>
                             <input
@@ -541,6 +642,7 @@
                               disabled
                               class="mt-1 w-full rounded-xl border border-white/10 bg-slate-800 px-3 py-2 text-white shadow-sm transition focus:border-sky-400 focus:outline-none focus:ring-4 focus:ring-sky-400/20 disabled:opacity-50"
                             >
+                            <p class="mt-2 hidden text-xs font-medium text-rose-300" data-field-error-for="new_customer_full_name"></p>
                           </div>
 
                           <div>
@@ -589,12 +691,125 @@
                     {% endif %}
                   </div>
 
-                  <button class="mt-5 inline-flex w-full items-center justify-center rounded-2xl bg-sky-400 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-sky-300 focus:outline-none focus:ring-4 focus:ring-sky-300/40">
+                  <div class="mt-5 rounded-2xl border border-white/10 bg-white/5 p-4" id="booking-price-summary">
+                    <div class="flex items-center justify-between gap-3">
+                      <div>
+                        <h5 class="text-sm font-semibold text-white">Price summary</h5>
+                        <p class="mt-1 text-xs text-slate-300">Review the current booking total before confirming.</p>
+                      </div>
+                      <div class="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-slate-200" id="booking-summary-item-count">
+                        0 items
+                      </div>
+                    </div>
+
+                    <div class="mt-4 space-y-2 text-sm text-slate-200">
+                      <div class="flex items-center justify-between gap-4">
+                        <span>Rental</span>
+                        <span id="booking-summary-rental">0 kr</span>
+                      </div>
+                      <div class="flex items-center justify-between gap-4">
+                        <span>Setup</span>
+                        <span id="booking-summary-setup">0 kr</span>
+                      </div>
+                      <div class="flex items-center justify-between gap-4">
+                        <span>Delivery</span>
+                        <span id="booking-summary-delivery">0 kr</span>
+                      </div>
+                      <div class="hidden text-amber-200" id="booking-summary-override-row">
+                        <div class="flex items-center justify-between gap-4">
+                        <span>Override</span>
+                        <span id="booking-summary-override">0 kr</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="mt-4 border-t border-white/10 pt-4">
+                      <div class="flex items-center justify-between gap-4">
+                        <span class="text-sm font-medium text-white">Estimated total</span>
+                        <span class="text-lg font-semibold text-white" id="booking-summary-total">0 kr</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    id="open-booking-confirmation"
+                    class="mt-5 inline-flex w-full items-center justify-center rounded-2xl bg-sky-400 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-sky-300 focus:outline-none focus:ring-4 focus:ring-sky-300/40"
+                  >
                     Place booking
                   </button>
+                  <p class="mt-3 hidden text-sm font-medium text-rose-300" id="booking-form-general-error"></p>
                 </div>
               </div>
             </form>
+
+            <div id="booking-confirmation-modal" class="fixed inset-0 z-50 hidden">
+              <div class="absolute inset-0 bg-slate-950/60" data-booking-modal-close></div>
+              <div class="absolute left-1/2 top-1/2 w-[calc(100%-2rem)] max-w-[36rem] -translate-x-1/2 -translate-y-1/2 rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-2xl">
+                <div class="flex items-start justify-between gap-4">
+                  <div>
+                    <div class="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">Confirm booking</div>
+                    <h3 class="mt-2 text-xl font-semibold text-slate-900">Review booking summary</h3>
+                    <p class="mt-2 text-sm text-slate-500">Make sure the quantities, services, and estimated total look right before sending the booking.</p>
+                  </div>
+                  <button
+                    type="button"
+                    class="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-500 transition hover:bg-slate-50 hover:text-slate-800"
+                    data-booking-modal-close
+                  >
+                    x
+                  </button>
+                </div>
+
+                <div id="booking-confirmation-warning" class="mt-5 hidden rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                  <div class="font-medium">Existing customer will be updated</div>
+                  <div class="mt-1" id="booking-confirmation-warning-text"></div>
+                </div>
+
+                <div class="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <div class="text-xs font-medium uppercase tracking-[0.18em] text-slate-400">Selected items</div>
+                  <div class="mt-3 space-y-2 text-sm text-slate-700" id="booking-confirmation-items">
+                    <div class="text-slate-400">No items selected yet.</div>
+                  </div>
+                </div>
+
+                <div class="mt-4 grid gap-3 text-sm text-slate-600 md:grid-cols-2">
+                  <div class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <div class="text-xs font-medium uppercase tracking-[0.18em] text-slate-400">Dates</div>
+                    <div class="mt-1 font-medium text-slate-900" id="booking-confirmation-dates">-</div>
+                  </div>
+                  <div class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <div class="text-xs font-medium uppercase tracking-[0.18em] text-slate-400">Customer</div>
+                    <div class="mt-1 font-medium text-slate-900" id="booking-confirmation-customer">-</div>
+                  </div>
+                  <div class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <div class="text-xs font-medium uppercase tracking-[0.18em] text-slate-400">Services</div>
+                    <div class="mt-1 font-medium text-slate-900" id="booking-confirmation-services">No extras</div>
+                  </div>
+                  <div class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <div class="text-xs font-medium uppercase tracking-[0.18em] text-slate-400">Estimated total</div>
+                    <div class="mt-1 text-lg font-semibold text-slate-900" id="booking-confirmation-total">0 kr</div>
+                  </div>
+                </div>
+
+                <div class="mt-5 flex flex-wrap gap-3">
+                  <button
+                    type="submit"
+                    form="booking-create-form"
+                    class="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-sky-700"
+                  >
+                    Confirm booking
+                  </button>
+                  <button
+                    type="button"
+                    class="inline-flex items-center justify-center rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                    data-booking-modal-close
+                  >
+                    Go back
+                  </button>
+                </div>
+              </div>
+            </div>
           {% endif %}
         {% endif %}
       </div>
@@ -664,6 +879,517 @@
       }
 
       syncBookingInputs();
+    })();
+
+    (() => {
+      const form = document.getElementById("booking-create-form");
+      if (!form) {
+        return;
+      }
+
+      const summaryItemCount = document.getElementById("booking-summary-item-count");
+      const summaryRental = document.getElementById("booking-summary-rental");
+      const summarySetup = document.getElementById("booking-summary-setup");
+      const summaryDelivery = document.getElementById("booking-summary-delivery");
+      const summaryOverrideRow = document.getElementById("booking-summary-override-row");
+      const summaryOverride = document.getElementById("booking-summary-override");
+      const summaryTotal = document.getElementById("booking-summary-total");
+
+      const modal = document.getElementById("booking-confirmation-modal");
+      const openModalButton = document.getElementById("open-booking-confirmation");
+      const modalItems = document.getElementById("booking-confirmation-items");
+      const modalDates = document.getElementById("booking-confirmation-dates");
+      const modalCustomer = document.getElementById("booking-confirmation-customer");
+      const modalServices = document.getElementById("booking-confirmation-services");
+      const modalTotal = document.getElementById("booking-confirmation-total");
+      const modalWarning = document.getElementById("booking-confirmation-warning");
+      const modalWarningText = document.getElementById("booking-confirmation-warning-text");
+      const generalError = document.getElementById("booking-form-general-error");
+      const newCustomerToggle = document.getElementById("create_new_customer");
+      const newCustomerToggleTrack = document.getElementById("create-new-customer-track");
+      const newCustomerToggleLabel = document.getElementById("create-new-customer-label");
+      const includeDeliveryToggle = form.querySelector('input[name="include_delivery"]');
+      const deliveryDistanceInput = document.getElementById("delivery_distance_km");
+      const deliveryFeeOverrideToggle = document.getElementById("delivery_fee_override_enabled");
+      const deliveryFeeOverrideFields = document.getElementById("delivery-fee-override-fields");
+      const deliveryFeeOverrideInput = document.getElementById("delivery_fee_override");
+      const deliveryFeePreview = document.getElementById("delivery-fee-preview");
+      const customerSelect = document.getElementById("customer_id");
+      const existingCustomerFields = document.getElementById("existing-customer-fields");
+      const newCustomerFields = document.getElementById("new-customer-fields");
+
+      const DELIVERY_BASE_FEE = 449;
+      const DELIVERY_INCLUDED_DISTANCE_KM = 10;
+      const DELIVERY_EXTRA_FEE_PER_KM = 5;
+
+      const errorClassNames = [
+        "border-rose-400",
+        "bg-rose-50",
+        "focus:border-rose-400",
+        "focus:ring-rose-100",
+        "bg-rose-950/20",
+        "focus:ring-rose-400/20",
+      ];
+
+      const formatMoney = (value) => `${Number(value || 0).toFixed(2)} kr`;
+      const parseMoney = (value) => {
+        const parsed = parseFloat(value || "");
+        return Number.isFinite(parsed) ? parsed : 0;
+      };
+      const parseDistanceKm = (value) => {
+        const normalized = `${value ?? ""}`.trim().replace(",", ".");
+        if (!normalized) {
+          return null;
+        }
+
+        const parsed = parseFloat(normalized);
+        return Number.isFinite(parsed) ? parsed : Number.NaN;
+      };
+      const formatDistanceKm = (value) => Number(value || 0).toFixed(1).replace(/\.0$/, "");
+      const calculateDeliveryFee = (distanceKm) => (
+        DELIVERY_BASE_FEE + (Math.max(distanceKm - DELIVERY_INCLUDED_DISTANCE_KM, 0) * DELIVERY_EXTRA_FEE_PER_KM)
+      );
+
+      const clearFieldError = (field) => {
+        if (!field) {
+          return;
+        }
+        errorClassNames.forEach((className) => field.classList.remove(className));
+        field.removeAttribute("aria-invalid");
+
+        const errorTarget = form.querySelector(`[data-field-error-for="${field.id}"]`);
+        if (errorTarget) {
+          errorTarget.textContent = "";
+          errorTarget.classList.add("hidden");
+        }
+      };
+
+      const setFieldError = (field, message) => {
+        if (!field) {
+          return;
+        }
+        errorClassNames.forEach((className) => field.classList.add(className));
+        field.setAttribute("aria-invalid", "true");
+
+        const errorTarget = form.querySelector(`[data-field-error-for="${field.id}"]`);
+        if (errorTarget) {
+          errorTarget.textContent = message;
+          errorTarget.classList.remove("hidden");
+        }
+      };
+
+      const setGeneralError = (message) => {
+        if (!generalError) {
+          return;
+        }
+        generalError.textContent = message;
+        generalError.classList.toggle("hidden", !message);
+      };
+
+      const clearValidationErrors = () => {
+        form.querySelectorAll("[aria-invalid='true']").forEach((field) => clearFieldError(field));
+        setGeneralError("");
+      };
+
+      const syncCustomerMode = () => {
+        const checked = Boolean(newCustomerToggle?.checked);
+
+        if (newCustomerToggleTrack) {
+          newCustomerToggleTrack.classList.toggle("bg-sky-400", checked);
+          newCustomerToggleTrack.classList.toggle("bg-slate-700/80", !checked);
+          newCustomerToggleTrack.classList.toggle("justify-end", checked);
+          newCustomerToggleTrack.classList.toggle("justify-start", !checked);
+        }
+
+        if (newCustomerToggleLabel) {
+          newCustomerToggleLabel.textContent = checked ? "On" : "Off";
+        }
+
+        if (customerSelect) {
+          customerSelect.disabled = checked;
+          if (checked) {
+            customerSelect.value = "";
+          }
+        }
+
+        if (existingCustomerFields) {
+          existingCustomerFields.classList.toggle("hidden", checked);
+        }
+
+        if (newCustomerFields) {
+          newCustomerFields.classList.toggle("hidden", !checked);
+        }
+
+        form.querySelectorAll("[data-new-user-field]").forEach((field) => {
+          field.disabled = !checked;
+          if (!checked) {
+            field.value = "";
+            clearFieldError(field);
+          }
+        });
+      };
+
+      const syncDeliveryMode = () => {
+        const checked = Boolean(includeDeliveryToggle?.checked);
+        const hasOverride = checked && Boolean(deliveryFeeOverrideToggle?.checked);
+
+        if (deliveryDistanceInput) {
+          deliveryDistanceInput.disabled = !checked || hasOverride;
+          if (!checked || hasOverride) {
+            clearFieldError(deliveryDistanceInput);
+          }
+        }
+
+        if (deliveryFeeOverrideToggle) {
+          deliveryFeeOverrideToggle.disabled = !checked;
+          if (!checked) {
+            deliveryFeeOverrideToggle.checked = false;
+          }
+        }
+
+        if (deliveryFeeOverrideFields) {
+          deliveryFeeOverrideFields.classList.toggle("hidden", !checked || !deliveryFeeOverrideToggle?.checked);
+        }
+
+        if (deliveryFeeOverrideInput) {
+          deliveryFeeOverrideInput.disabled = !checked || !deliveryFeeOverrideToggle?.checked;
+          if (!checked || !deliveryFeeOverrideToggle?.checked) {
+            clearFieldError(deliveryFeeOverrideInput);
+          }
+        }
+      };
+
+      const getSelectedItems = () => {
+        const qtyInputs = Array.from(form.querySelectorAll('input[name^="qty_"]'))
+          .filter((input) => !input.disabled);
+
+        return qtyInputs
+          .map((input) => {
+            const qty = parseInt(input.value || "0", 10);
+            if (!Number.isFinite(qty) || qty <= 0) {
+              return null;
+            }
+
+            const categoryId = input.dataset.categoryId;
+            const customPriceInput = form.querySelector(`[data-custom-price-for="${categoryId}"]:not([disabled])`);
+            const customPrice = customPriceInput ? parseMoney(customPriceInput.value) : null;
+            const hasCustomPrice = customPriceInput && customPriceInput.value.trim() !== "";
+            const unitPrice = hasCustomPrice ? customPrice : parseMoney(input.dataset.standardPrice);
+            const setupFee = input.dataset.isTent === "true" ? parseMoney(input.dataset.setupFee) : 0;
+
+            return {
+              id: categoryId,
+              name: input.dataset.categoryName || "Unknown category",
+              qty,
+              unitPrice,
+              setupFee,
+              isTent: input.dataset.isTent === "true",
+              usesCustomPrice: Boolean(hasCustomPrice),
+            };
+          })
+          .filter(Boolean);
+      };
+
+      const getSummaryState = () => {
+        const selectedItems = getSelectedItems();
+        const includeSetup = form.querySelector('input[name="include_setup_service"]')?.checked || false;
+        const includeDelivery = form.querySelector('input[name="include_delivery"]')?.checked || false;
+        const manualDeliveryOverride = includeDelivery && Boolean(deliveryFeeOverrideToggle?.checked);
+        const deliveryDistanceRaw = deliveryDistanceInput?.value.trim() || "";
+        const deliveryDistanceKm = includeDelivery ? parseDistanceKm(deliveryDistanceRaw) : null;
+        const hasDeliveryDistance = includeDelivery && Number.isFinite(deliveryDistanceKm) && deliveryDistanceKm >= 0;
+        const deliveryOverrideRaw = deliveryFeeOverrideInput?.value.trim() || "";
+        const deliveryOverrideValue = manualDeliveryOverride ? parseMoney(deliveryOverrideRaw) : 0;
+        const hasDeliveryOverride = manualDeliveryOverride && deliveryOverrideRaw !== "";
+        const deliveryFee = hasDeliveryOverride
+          ? deliveryOverrideValue
+          : (hasDeliveryDistance ? calculateDeliveryFee(deliveryDistanceKm) : 0);
+        const bookingOverrideInput = form.querySelector('input[name="booking_custom_total_price"]');
+        const hasBookingOverride = bookingOverrideInput && bookingOverrideInput.value.trim() !== "";
+        const bookingOverride = hasBookingOverride ? parseMoney(bookingOverrideInput.value) : 0;
+        const isCreatingNewCustomer = Boolean(newCustomerToggle?.checked);
+        const enteredCustomerName = document.getElementById("new_customer_full_name")?.value.trim() || "";
+        const customerCollision = isCreatingNewCustomer && enteredCustomerName
+          ? Array.from(customerSelect?.options || []).find((option) => {
+              const optionName = (option.dataset.customerName || "").trim().toLocaleLowerCase();
+              return optionName && optionName === enteredCustomerName.toLocaleLowerCase();
+            }) || null
+          : null;
+
+        const rental = selectedItems.reduce((sum, item) => sum + (item.unitPrice * item.qty), 0);
+        const setup = includeSetup
+          ? selectedItems.reduce((sum, item) => sum + ((item.isTent ? item.setupFee : 0) * item.qty), 0)
+          : 0;
+        const total = hasBookingOverride ? bookingOverride : rental + setup + deliveryFee;
+
+        return {
+          selectedItems,
+          rental,
+          setup,
+          delivery: deliveryFee,
+          deliveryDistanceKm: hasDeliveryDistance ? deliveryDistanceKm : null,
+          deliveryDistanceRaw,
+          hasDeliveryDistance,
+          manualDeliveryOverride,
+          hasDeliveryOverride,
+          deliveryOverrideRaw,
+          total,
+          includeSetup,
+          includeDelivery,
+          hasBookingOverride,
+          bookingOverride,
+          customerCollision,
+        };
+      };
+
+      const getCustomerLabel = () => {
+        if (newCustomerToggle && newCustomerToggle.checked) {
+          return document.getElementById("new_customer_full_name")?.value.trim() || "New customer";
+        }
+
+        if (customerSelect && customerSelect.selectedOptions.length) {
+          return customerSelect.selectedOptions[0].textContent || "Selected customer";
+        }
+
+        return form.dataset.customerFallback || "No customer selected";
+      };
+
+      const renderSummary = () => {
+        const state = getSummaryState();
+        const itemCount = state.selectedItems.reduce((sum, item) => sum + item.qty, 0);
+
+        summaryItemCount.textContent = `${itemCount} item${itemCount === 1 ? "" : "s"}`;
+        summaryRental.textContent = formatMoney(state.rental);
+        summarySetup.textContent = state.includeSetup ? formatMoney(state.setup) : "Not included";
+
+        if (state.includeDelivery) {
+          if (state.manualDeliveryOverride && state.hasDeliveryOverride) {
+            summaryDelivery.textContent = `${formatMoney(state.delivery)} (manual)`;
+            if (deliveryFeePreview) {
+              deliveryFeePreview.textContent = `Custom delivery fee: ${formatMoney(state.delivery)}`;
+            }
+          } else if (state.manualDeliveryOverride) {
+            summaryDelivery.textContent = "Enter manual fee";
+            if (deliveryFeePreview) {
+              deliveryFeePreview.textContent = "Enter a custom delivery fee.";
+            }
+          } else if (state.hasDeliveryDistance) {
+            const deliveryLabel = `${formatMoney(state.delivery)} (${formatDistanceKm(state.deliveryDistanceKm)} km)`;
+            summaryDelivery.textContent = deliveryLabel;
+            if (deliveryFeePreview) {
+              deliveryFeePreview.textContent = `Calculated delivery fee: ${deliveryLabel}`;
+            }
+          } else {
+            summaryDelivery.textContent = "Enter km";
+            if (deliveryFeePreview) {
+              deliveryFeePreview.textContent = "Enter a delivery distance to calculate the fee.";
+            }
+          }
+        } else {
+          summaryDelivery.textContent = "Not included";
+          if (deliveryFeePreview) {
+            deliveryFeePreview.textContent = "Turn on delivery to calculate the fee.";
+          }
+        }
+
+        summaryTotal.textContent = formatMoney(state.total);
+
+        if (summaryOverrideRow) {
+          summaryOverrideRow.classList.toggle("hidden", !state.hasBookingOverride);
+        }
+        if (summaryOverride) {
+          summaryOverride.textContent = formatMoney(state.bookingOverride);
+        }
+      };
+
+      const validateBeforeConfirm = () => {
+        clearValidationErrors();
+
+        const state = getSummaryState();
+        const itemCount = state.selectedItems.reduce((sum, item) => sum + item.qty, 0);
+        let firstInvalidField = null;
+
+        if (!itemCount) {
+          setGeneralError("Select at least one item before placing the booking.");
+        }
+
+        if (state.includeDelivery) {
+          if (state.manualDeliveryOverride) {
+            if (!state.deliveryOverrideRaw) {
+              setFieldError(deliveryFeeOverrideInput, "Enter a custom delivery fee.");
+              firstInvalidField ||= deliveryFeeOverrideInput;
+            }
+          } else if (!state.deliveryDistanceRaw) {
+            setFieldError(deliveryDistanceInput, "Enter a delivery distance in km to calculate the fee.");
+            firstInvalidField ||= deliveryDistanceInput;
+          } else if (!state.hasDeliveryDistance) {
+            setFieldError(deliveryDistanceInput, "Delivery distance must be 0 km or more.");
+            firstInvalidField ||= deliveryDistanceInput;
+          }
+        }
+
+        const isCreatingNewCustomer = Boolean(newCustomerToggle?.checked);
+        const newCustomerName = document.getElementById("new_customer_full_name");
+
+        if (isCreatingNewCustomer) {
+          const enteredName = newCustomerName?.value.trim() || "";
+          if (!enteredName) {
+            setFieldError(newCustomerName, "Full name is required when creating a new customer.");
+            firstInvalidField ||= newCustomerName;
+          }
+        } else if (customerSelect && customerSelect.options.length) {
+          if (!customerSelect.value) {
+            setFieldError(customerSelect, "Choose an existing customer or enable new customer creation.");
+            firstInvalidField ||= customerSelect;
+          }
+        }
+
+        if (generalError && !generalError.textContent && firstInvalidField) {
+          setGeneralError("Check the highlighted fields before placing the booking.");
+        }
+
+        if (firstInvalidField) {
+          firstInvalidField.focus();
+        }
+
+        return !generalError.textContent && !firstInvalidField ? state : null;
+      };
+
+      const openModal = () => {
+        const state = validateBeforeConfirm();
+        if (!state) {
+          return;
+        }
+
+        modalItems.innerHTML = "";
+        state.selectedItems.forEach((item) => {
+          const row = document.createElement("div");
+          row.className = "flex items-start justify-between gap-4 rounded-xl border border-slate-200 bg-white px-3 py-2";
+          row.innerHTML = `
+            <div>
+              <div class="font-medium text-slate-900">${item.qty} x ${item.name}</div>
+              <div class="mt-1 text-xs text-slate-500">${item.usesCustomPrice ? "Custom" : "Standard"} unit price: ${formatMoney(item.unitPrice)}</div>
+            </div>
+            <div class="text-right text-sm font-medium text-slate-900">${formatMoney(item.unitPrice * item.qty)}</div>
+          `;
+          modalItems.appendChild(row);
+        });
+
+        modalDates.textContent = `${form.querySelector('input[name="start_date"]').value} -> ${form.querySelector('input[name="end_date"]').value}`;
+        modalCustomer.textContent = getCustomerLabel();
+
+        if (state.customerCollision) {
+          if (modalWarning) {
+            modalWarning.classList.remove("hidden");
+          }
+          if (modalWarningText) {
+            modalWarningText.textContent = `A customer named "${state.customerCollision.dataset.customerName}" already exists. Confirming will update that customer with any new email, phone, or address you entered, and the booking will be created under that existing customer.`;
+          }
+          modalCustomer.textContent = `${state.customerCollision.textContent || getCustomerLabel()} (existing customer will be updated)`;
+        } else {
+          if (modalWarning) {
+            modalWarning.classList.add("hidden");
+          }
+          if (modalWarningText) {
+            modalWarningText.textContent = "";
+          }
+        }
+
+        const serviceBits = [];
+        if (state.includeSetup) serviceBits.push(`Setup (${formatMoney(state.setup)})`);
+        if (state.includeDelivery) {
+          if (state.manualDeliveryOverride) {
+            serviceBits.push(`Delivery (manual, ${formatMoney(state.delivery)})`);
+          } else {
+            serviceBits.push(`Delivery (${formatDistanceKm(state.deliveryDistanceKm)} km, ${formatMoney(state.delivery)})`);
+          }
+        }
+        if (state.hasBookingOverride) serviceBits.push(`Override (${formatMoney(state.bookingOverride)})`);
+        modalServices.textContent = serviceBits.length ? serviceBits.join(" - ") : "No extras";
+        modalTotal.textContent = formatMoney(state.total);
+
+        modal.classList.remove("hidden");
+      };
+
+      const closeModal = () => {
+        modal.classList.add("hidden");
+      };
+
+      form.addEventListener("input", renderSummary);
+      form.addEventListener("change", renderSummary);
+      form.addEventListener("input", clearValidationErrors);
+      form.addEventListener("change", clearValidationErrors);
+      includeDeliveryToggle?.addEventListener("change", () => {
+        syncDeliveryMode();
+        clearValidationErrors();
+        renderSummary();
+      });
+      deliveryFeeOverrideToggle?.addEventListener("change", () => {
+        syncDeliveryMode();
+        clearValidationErrors();
+        renderSummary();
+      });
+      newCustomerToggle?.addEventListener("change", () => {
+        syncCustomerMode();
+        clearValidationErrors();
+      });
+      openModalButton?.addEventListener("click", openModal);
+      modal?.querySelectorAll("[data-booking-modal-close]").forEach((button) => {
+        button.addEventListener("click", closeModal);
+      });
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          closeModal();
+        }
+      });
+
+      syncCustomerMode();
+      syncDeliveryMode();
+      renderSummary();
+    })();
+
+    (() => {
+      const searchInput = document.getElementById("category-search-input");
+      if (!searchInput) {
+        return;
+      }
+
+      const cards = Array.from(document.querySelectorAll("[data-category-card]"));
+      const rows = Array.from(document.querySelectorAll("[data-category-row]"));
+      const countChip = document.getElementById("category-search-count");
+
+      const allEntries = [...cards, ...rows];
+      const normalizeSearchText = (value) => (value || "").toLocaleLowerCase().replace(/×/g, "x");
+
+      const updateCount = () => {
+        if (!countChip) {
+          return;
+        }
+        const visibleCards = cards.filter((card) => !card.classList.contains("hidden")).length;
+        const visibleRows = rows.filter((row) => row.style.display !== "none").length;
+        const visible = visibleCards || visibleRows;
+        countChip.textContent = `${visible} shown`;
+      };
+
+      const applyFilter = () => {
+        const query = normalizeSearchText(searchInput.value.trim());
+
+        allEntries.forEach((entry) => {
+          const haystack = normalizeSearchText(entry.dataset.searchText || "");
+          const matches = !query || haystack.includes(query);
+
+          if (entry.hasAttribute("data-category-card")) {
+            entry.classList.toggle("hidden", !matches);
+          } else {
+            entry.style.display = matches ? "" : "none";
+          }
+        });
+
+        updateCount();
+      };
+
+      searchInput.addEventListener("input", applyFilter);
+      applyFilter();
     })();
   </script>
 {% endblock %}

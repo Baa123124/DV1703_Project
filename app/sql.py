@@ -37,6 +37,14 @@ FROM customers
 WHERE id = %s;
 """
 
+SQL_GET_CUSTOMER_BY_FULL_NAME = """
+SELECT id, full_name, email, phone, address, user_id, created_at
+FROM customers
+WHERE lower(full_name) = lower(%s)
+ORDER BY id
+LIMIT 1;
+"""
+
 SQL_GET_CUSTOMER_BY_USER_ID = """
 SELECT id, full_name, email, phone, address, created_at, user_id
 FROM customers

@@ -1,12 +1,14 @@
 from flask import Blueprint, request, render_template, redirect, url_for, flash, session, abort
 
 from datetime import timedelta
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
 from .db import query, execute, tx
 from .sql import (
     # customers
     SQL_LIST_CUSTOMERS,
     SQL_GET_CUSTOMER,
+    SQL_GET_CUSTOMER_BY_FULL_NAME,
     SQL_GET_CUSTOMER_BY_USER_ID,
     SQL_CREATE_CUSTOMER,
     SQL_LIST_BOOKINGS_FOR_CUSTOMER,
@@ -64,6 +66,10 @@ from .sql import (
 
 bp = Blueprint("routes", __name__)
 
+DELIVERY_BASE_FEE = Decimal("449.00")
+DELIVERY_INCLUDED_DISTANCE_KM = Decimal("10")
+DELIVERY_EXTRA_FEE_PER_KM = Decimal("5.00")
+
 
 def current_user():
     return session.get("user_id"), session.get("role")
@@ -97,6 +103,40 @@ def _to_int_or_none(value):
 def _to_str_or_none(value):
     value = (value or "").strip()
     return value if value != "" else None
+
+
+def _calculate_delivery_fee_from_distance(distance_km_value):
+    distance_text = (distance_km_value or "").strip().replace(",", ".")
+    if distance_text == "":
+        raise ValueError("missing_delivery_distance")
+
+    try:
+        distance_km = Decimal(distance_text)
+    except InvalidOperation as exc:
+        raise ValueError("invalid_delivery_distance") from exc
+
+    if distance_km < 0:
+        raise ValueError("negative_delivery_distance")
+
+    extra_distance = max(distance_km - DELIVERY_INCLUDED_DISTANCE_KM, Decimal("0"))
+    delivery_fee = DELIVERY_BASE_FEE + (extra_distance * DELIVERY_EXTRA_FEE_PER_KM)
+    return delivery_fee.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+
+def _parse_manual_delivery_fee(delivery_fee_value):
+    fee_text = (delivery_fee_value or "").strip().replace(",", ".")
+    if fee_text == "":
+        raise ValueError("missing_delivery_fee_override")
+
+    try:
+        delivery_fee = Decimal(fee_text)
+    except InvalidOperation as exc:
+        raise ValueError("invalid_delivery_fee_override") from exc
+
+    if delivery_fee < 0:
+        raise ValueError("negative_delivery_fee_override")
+
+    return delivery_fee.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
 def _build_booking_item_summary(items):
@@ -261,7 +301,38 @@ def booking_create_from_home():
 
     include_delivery = _to_bool(request.form.get("include_delivery"))
     include_setup_service = _to_bool(request.form.get("include_setup_service"))
-    delivery_fee = _to_str_or_none(request.form.get("delivery_fee")) if include_delivery else None
+    if include_delivery:
+        admin_delivery_override = role == "admin" and _to_bool(
+            request.form.get("delivery_fee_override_enabled")
+        )
+        if admin_delivery_override:
+            try:
+                delivery_fee = str(
+                    _parse_manual_delivery_fee(request.form.get("delivery_fee_override"))
+                )
+            except ValueError as exc:
+                error_map = {
+                    "missing_delivery_fee_override": "Enter a custom delivery fee.",
+                    "invalid_delivery_fee_override": "Enter a valid custom delivery fee.",
+                    "negative_delivery_fee_override": "Custom delivery fee must be 0 kr or more.",
+                }
+                flash(error_map.get(str(exc), "Could not use the custom delivery fee."), "error")
+                return redirect(url_for("routes.home", start_date=start, end_date=end))
+        else:
+            try:
+                delivery_fee = str(
+                    _calculate_delivery_fee_from_distance(request.form.get("delivery_distance_km"))
+                )
+            except ValueError as exc:
+                error_map = {
+                    "missing_delivery_distance": "Enter a delivery distance in km to calculate the delivery fee.",
+                    "invalid_delivery_distance": "Enter a valid delivery distance in km.",
+                    "negative_delivery_distance": "Delivery distance must be 0 km or more.",
+                }
+                flash(error_map.get(str(exc), "Could not calculate the delivery fee."), "error")
+                return redirect(url_for("routes.home", start_date=start, end_date=end))
+    else:
+        delivery_fee = None
     booking_note = _to_str_or_none(request.form.get("booking_note"))
     booking_custom_total_price = (
         _to_str_or_none(request.form.get("booking_custom_total_price"))
@@ -342,11 +413,28 @@ def booking_create_from_home():
                 effective_customer_id = customer_id
 
                 if create_new_customer:
-                    cur.execute(
-                        SQL_CREATE_CUSTOMER,
-                        (new_full_name, new_email, new_phone, new_address, None),
-                    )
-                    customer = cur.fetchone()
+                    cur.execute(SQL_GET_CUSTOMER_BY_FULL_NAME, (new_full_name,))
+                    existing_customer = cur.fetchone()
+
+                    if existing_customer:
+                        cur.execute(
+                            SQL_UPDATE_CUSTOMER,
+                            (
+                                new_full_name,
+                                new_email if new_email is not None else existing_customer["email"],
+                                new_phone if new_phone is not None else existing_customer["phone"],
+                                new_address if new_address is not None else existing_customer["address"],
+                                existing_customer["id"],
+                            ),
+                        )
+                        customer = cur.fetchone()
+                    else:
+                        cur.execute(
+                            SQL_CREATE_CUSTOMER,
+                            (new_full_name, new_email, new_phone, new_address, None),
+                        )
+                        customer = cur.fetchone()
+
                     effective_customer_id = customer["id"]
 
                 cur.execute(
