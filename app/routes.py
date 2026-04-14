@@ -1,4 +1,4 @@
-from flask import Blueprint, request, render_template, redirect, url_for, flash, session, abort
+from flask import Blueprint, current_app, request, render_template, redirect, url_for, flash, session, abort
 
 from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
@@ -14,6 +14,8 @@ from .sql import (
     SQL_LIST_BOOKINGS_FOR_CUSTOMER,
     SQL_GET_CUSTOMER_FOR_EDIT,
     SQL_UPDATE_CUSTOMER,
+    SQL_EXPIRE_STALE_PENDING_BOOKINGS,
+    SQL_ACTIVE_PENDING_BOOKING_COUNT,
 
     # rental periods
     SQL_LIST_RENTAL_PERIODS,
@@ -90,7 +92,7 @@ def require_login():
 def require_admin():
     uid, role = require_login()
     if not uid:
-        return None, None
+        abort(403)
     if role != "admin":
         abort(403)
     return uid, role
@@ -108,6 +110,32 @@ def _to_int_or_none(value):
 def _to_str_or_none(value):
     value = (value or "").strip()
     return value if value != "" else None
+
+
+def _expire_stale_pending_bookings():
+    execute(
+        SQL_EXPIRE_STALE_PENDING_BOOKINGS,
+        (current_app.config["PENDING_BOOKING_HOLD_MINUTES"],),
+    )
+
+
+def _customer_pending_booking_limit_reached(customer_id: int) -> bool:
+    row = query(
+        SQL_ACTIVE_PENDING_BOOKING_COUNT,
+        (
+            customer_id,
+            current_app.config["PENDING_BOOKING_HOLD_MINUTES"],
+        ),
+        one=True,
+    )
+    return (row["pending_count"] if row else 0) >= current_app.config[
+        "MAX_ACTIVE_PENDING_BOOKINGS_PER_CUSTOMER"
+    ]
+
+
+@bp.before_app_request
+def expire_stale_pending_bookings_before_request():
+    _expire_stale_pending_bookings()
 
 
 def _calculate_delivery_fee_from_distance(distance_km_value):
@@ -555,6 +583,12 @@ def booking_create_from_home():
         if not cust:
             flash("No customer profile linked to this account.", "error")
             return redirect(url_for("routes.home", start_date=start, end_date=end))
+        if _customer_pending_booking_limit_reached(cust["id"]):
+            flash(
+                f"You already have the maximum number of active pending bookings. Pending bookings expire after {current_app.config['PENDING_BOOKING_HOLD_MINUTES']} minutes.",
+                "error",
+            )
+            return redirect(url_for("routes.customer_detail", customer_id=cust["id"]))
         customer_id = str(cust["id"])
         create_new_customer = False
 
@@ -751,6 +785,11 @@ def booking_create_from_home():
             turnaround_item_labels = []
 
         flash(f"Booking created (id={booking_id}).", "success")
+        if role != "admin":
+            flash(
+                f"Pending bookings hold stock for {current_app.config['PENDING_BOOKING_HOLD_MINUTES']} minutes unless staff confirms them.",
+                "success",
+            )
         if turnaround_item_labels:
             flash(
                 f"Warning: same-day turnaround items were allocated for this admin booking: {_format_turnaround_item_labels(turnaround_item_labels)}.",
@@ -1442,16 +1481,22 @@ def admin_booking_edit_save(booking_id: int):
 @bp.post("/bookings/<int:booking_id>/confirm")
 def booking_confirm(booking_id: int):
     require_admin()
-    execute(SQL_CONFIRM_BOOKING, (booking_id,))
-    flash("Booking confirmed.", "success")
+    updated = execute(SQL_CONFIRM_BOOKING, (booking_id,))
+    if updated:
+        flash("Booking confirmed.", "success")
+    else:
+        flash("Only pending bookings can be confirmed.", "error")
     return redirect(url_for("routes.booking_detail", booking_id=booking_id))
 
 
 @bp.post("/bookings/<int:booking_id>/cancel")
 def booking_cancel(booking_id: int):
     require_admin()
-    execute(SQL_CANCEL_BOOKING, (booking_id,))
-    flash("Booking cancelled.", "success")
+    updated = execute(SQL_CANCEL_BOOKING, (booking_id,))
+    if updated:
+        flash("Booking cancelled.", "success")
+    else:
+        flash("Booking is already cancelled.", "error")
     return redirect(url_for("routes.booking_detail", booking_id=booking_id))
 
 

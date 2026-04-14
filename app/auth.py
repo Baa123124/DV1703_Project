@@ -5,7 +5,7 @@ from .db import query, tx
 from .sql import (
     SQL_CREATE_USER,
     SQL_GET_USER_BY_EMAIL,
-    SQL_LINK_CUSTOMER_TO_USER,
+    SQL_GET_CUSTOMER_BY_EMAIL,
     SQL_CREATE_CUSTOMER,
 )
 
@@ -59,6 +59,14 @@ def register():
         flash("Name, email and password are required.", "error")
         return redirect(url_for("auth.register_form"))
 
+    existing_customer = query(SQL_GET_CUSTOMER_BY_EMAIL, (email,), one=True)
+    if existing_customer:
+        flash(
+            "That email already belongs to an existing customer profile. For security, self-registration is blocked for pre-created customer emails. Ask an admin to update or remove that customer email before registering.",
+            "error",
+        )
+        return redirect(url_for("auth.register_form"))
+
     pw_hash = generate_password_hash(password)
 
     try:
@@ -66,14 +74,8 @@ def register():
             cur.execute(SQL_CREATE_USER, (email, pw_hash, "customer"))
             user = cur.fetchone()
 
-            # If admin already created a customer with same email, link it
-            cur.execute(SQL_LINK_CUSTOMER_TO_USER, (user["id"], email))
-            linked = cur.fetchone()
-
-            # Otherwise create a new customer profile linked to this user
-            if not linked:
-                cur.execute(SQL_CREATE_CUSTOMER, (full_name, email, phone, user["id"]))
-                cur.fetchone()
+            cur.execute(SQL_CREATE_CUSTOMER, (full_name, email, phone, None, user["id"]))
+            cur.fetchone()
 
             return user
 

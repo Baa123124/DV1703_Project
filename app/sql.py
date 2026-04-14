@@ -12,16 +12,16 @@ WHERE email = %s;
 """
 
 # Customers
+SQL_GET_CUSTOMER_BY_EMAIL = """
+SELECT id, full_name, email, phone, address, user_id, created_at
+FROM customers
+WHERE lower(email) = lower(%s)
+LIMIT 1;
+"""
+
 SQL_CREATE_CUSTOMER = """
 INSERT INTO customers (full_name, email, phone, address, user_id)
 VALUES (%s, %s, %s, %s, %s)
-RETURNING id;
-"""
-
-SQL_LINK_CUSTOMER_TO_USER = """
-UPDATE customers
-SET user_id = %s
-WHERE email = %s AND user_id IS NULL
 RETURNING id;
 """
 
@@ -49,6 +49,21 @@ SQL_GET_CUSTOMER_BY_USER_ID = """
 SELECT id, full_name, email, phone, address, created_at, user_id
 FROM customers
 WHERE user_id = %s;
+"""
+
+SQL_EXPIRE_STALE_PENDING_BOOKINGS = """
+UPDATE bookings
+SET status = 'cancelled'
+WHERE status = 'pending'
+  AND created_at < CURRENT_TIMESTAMP - (%s * INTERVAL '1 minute');
+"""
+
+SQL_ACTIVE_PENDING_BOOKING_COUNT = """
+SELECT COUNT(*) AS pending_count
+FROM bookings
+WHERE customer_id = %s
+  AND status = 'pending'
+  AND created_at >= CURRENT_TIMESTAMP - (%s * INTERVAL '1 minute');
 """
 
 # Rental periods
@@ -570,7 +585,7 @@ SELECT
   b.custom_total_price,
   b.custom_price_note,
   b.booking_note,
-  b.admin_note,
+  NULL::TEXT AS admin_note,
   b.created_at
 FROM bookings b
 JOIN customers c ON c.id = b.customer_id
@@ -744,7 +759,7 @@ SELECT
   custom_total_price,
   custom_price_note,
   booking_note,
-  admin_note,
+  NULL::TEXT AS admin_note,
   created_at
 FROM bookings
 WHERE customer_id = %s
@@ -830,13 +845,15 @@ ORDER BY b.created_at DESC;
 SQL_CONFIRM_BOOKING = """
 UPDATE bookings
 SET status = 'confirmed'
-WHERE id = %s;
+WHERE id = %s
+  AND status = 'pending';
 """
 
 SQL_CANCEL_BOOKING = """
 UPDATE bookings
 SET status = 'cancelled'
-WHERE id = %s;
+WHERE id = %s
+  AND status <> 'cancelled';
 """
 
 SQL_DELETE_BOOKING = """

@@ -96,13 +96,15 @@
           {% endif %}
         </div>
       {% endif %}
-      {% if booking.admin_note %}
-        <div class="mt-2">
-          <b>Admin note:</b>
-          <div class="text-slate-600 mt-1">{{ booking.admin_note }}</div>
-        </div>
-      {% else %}
-        <div class="mt-2 text-slate-400">No admin note.</div>
+      {% if role == 'admin' %}
+        {% if booking.admin_note %}
+          <div class="mt-2">
+            <b>Admin note:</b>
+            <div class="text-slate-600 mt-1">{{ booking.admin_note }}</div>
+          </div>
+        {% else %}
+          <div class="mt-2 text-slate-400">No admin note.</div>
+        {% endif %}
       {% endif %}
     </div>
   </div>

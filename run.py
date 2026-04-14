@@ -13,11 +13,12 @@ if not os.path.exists(CERT_FILE) or not os.path.exists(KEY_FILE):
     make_ssl_devcert(CERT_BASE, host="localhost")
 
 app = create_app()
+DEBUG_ENABLED = (os.getenv("FLASK_DEBUG") or "").strip().lower() in {"1", "true", "yes", "on"}
 
 if __name__ == "__main__":
     app.run(
         host="0.0.0.0",
         port=9343,
         ssl_context=(CERT_FILE, KEY_FILE),
-        debug=True,
+        debug=DEBUG_ENABLED,
     )
