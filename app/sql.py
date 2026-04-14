@@ -55,7 +55,7 @@ SQL_EXPIRE_STALE_PENDING_BOOKINGS = """
 UPDATE bookings
 SET status = 'cancelled'
 WHERE status = 'pending'
-  AND created_at < CURRENT_TIMESTAMP - (%s * INTERVAL '1 minute');
+  AND created_at < CURRENT_TIMESTAMP - (%s * INTERVAL '1 day');
 """
 
 SQL_ACTIVE_PENDING_BOOKING_COUNT = """
@@ -63,7 +63,7 @@ SELECT COUNT(*) AS pending_count
 FROM bookings
 WHERE customer_id = %s
   AND status = 'pending'
-  AND created_at >= CURRENT_TIMESTAMP - (%s * INTERVAL '1 minute');
+  AND created_at >= CURRENT_TIMESTAMP - (%s * INTERVAL '1 day');
 """
 
 # Rental periods

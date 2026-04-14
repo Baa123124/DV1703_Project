@@ -115,7 +115,7 @@ def _to_str_or_none(value):
 def _expire_stale_pending_bookings():
     execute(
         SQL_EXPIRE_STALE_PENDING_BOOKINGS,
-        (current_app.config["PENDING_BOOKING_HOLD_MINUTES"],),
+        (current_app.config["PENDING_BOOKING_HOLD_DAYS"],),
     )
 
 
@@ -124,13 +124,18 @@ def _customer_pending_booking_limit_reached(customer_id: int) -> bool:
         SQL_ACTIVE_PENDING_BOOKING_COUNT,
         (
             customer_id,
-            current_app.config["PENDING_BOOKING_HOLD_MINUTES"],
+            current_app.config["PENDING_BOOKING_HOLD_DAYS"],
         ),
         one=True,
     )
     return (row["pending_count"] if row else 0) >= current_app.config[
         "MAX_ACTIVE_PENDING_BOOKINGS_PER_CUSTOMER"
     ]
+
+
+def _pending_booking_hold_label() -> str:
+    days = current_app.config["PENDING_BOOKING_HOLD_DAYS"]
+    return f"{days} day{'s' if days != 1 else ''}"
 
 
 @bp.before_app_request
@@ -585,7 +590,7 @@ def booking_create_from_home():
             return redirect(url_for("routes.home", start_date=start, end_date=end))
         if _customer_pending_booking_limit_reached(cust["id"]):
             flash(
-                f"You already have the maximum number of active pending bookings. Pending bookings expire after {current_app.config['PENDING_BOOKING_HOLD_MINUTES']} minutes.",
+                f"You already have the maximum number of active pending bookings. Pending bookings expire after {_pending_booking_hold_label()}.",
                 "error",
             )
             return redirect(url_for("routes.customer_detail", customer_id=cust["id"]))
@@ -787,7 +792,7 @@ def booking_create_from_home():
         flash(f"Booking created (id={booking_id}).", "success")
         if role != "admin":
             flash(
-                f"Pending bookings hold stock for {current_app.config['PENDING_BOOKING_HOLD_MINUTES']} minutes unless staff confirms them.",
+                f"Pending bookings hold stock for {_pending_booking_hold_label()} unless staff confirms them.",
                 "success",
             )
         if turnaround_item_labels:

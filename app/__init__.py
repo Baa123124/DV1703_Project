@@ -34,9 +34,9 @@ def create_app():
     if not secret_key:
         raise RuntimeError("SECRET_KEY must be set before the app can start.")
 
-    pending_booking_hold_minutes = _env_int("PENDING_BOOKING_HOLD_MINUTES", 30)
-    if pending_booking_hold_minutes <= 0:
-        raise RuntimeError("PENDING_BOOKING_HOLD_MINUTES must be greater than 0.")
+    pending_booking_hold_days = _env_int("PENDING_BOOKING_HOLD_DAYS", 7)
+    if pending_booking_hold_days <= 0:
+        raise RuntimeError("PENDING_BOOKING_HOLD_DAYS must be greater than 0.")
 
     max_active_pending_bookings = _env_int(
         "MAX_ACTIVE_PENDING_BOOKINGS_PER_CUSTOMER",
@@ -55,7 +55,7 @@ def create_app():
             "SESSION_COOKIE_SECURE",
             default=preferred_url_scheme == "https",
         ),
-        PENDING_BOOKING_HOLD_MINUTES=pending_booking_hold_minutes,
+        PENDING_BOOKING_HOLD_DAYS=pending_booking_hold_days,
         MAX_ACTIVE_PENDING_BOOKINGS_PER_CUSTOMER=max_active_pending_bookings,
     )
 
