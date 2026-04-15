@@ -1,4 +1,5 @@
-from flask import Blueprint, request, render_template, redirect, url_for, flash, session
+from flask import Blueprint, request, render_template, redirect, url_for, flash, session, current_app
+from psycopg import errors
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from .db import query, tx
@@ -59,6 +60,11 @@ def register():
         flash("Namn, e-post och lösenord krävs.", "error")
         return redirect(url_for("auth.register_form"))
 
+    existing_user = query(SQL_GET_USER_BY_EMAIL, (email,), one=True)
+    if existing_user:
+        flash("Den e-postadressen är redan registrerad. Logga in i stället.", "error")
+        return redirect(url_for("auth.login_form"))
+
     existing_customer = query(SQL_GET_CUSTOMER_BY_EMAIL, (email,), one=True)
     if existing_customer:
         flash(
@@ -74,15 +80,19 @@ def register():
             cur.execute(SQL_CREATE_USER, (email, pw_hash, "customer"))
             user = cur.fetchone()
 
-            cur.execute(SQL_CREATE_CUSTOMER, (full_name, email, phone, None, user["id"]))
+            cur.execute(SQL_CREATE_CUSTOMER, (full_name, email, phone, None, None, user["id"]))
             cur.fetchone()
 
             return user
 
         user = tx(work)
 
+    except errors.UniqueViolation:
+        flash("Den e-postadressen är redan registrerad. Logga in i stället.", "error")
+        return redirect(url_for("auth.login_form"))
     except Exception:
-        flash("Registreringen misslyckades (e-postadressen finns kanske redan).", "error")
+        current_app.logger.exception("Registration failed for email %s", email)
+        flash("Registreringen misslyckades. Försök igen.", "error")
         return redirect(url_for("auth.register_form"))
 
     session.clear()
