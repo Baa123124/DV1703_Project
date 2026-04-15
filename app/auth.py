@@ -27,19 +27,19 @@ def login():
     password = request.form.get("password", "")
 
     if not email or not password:
-        flash("Email and password are required.", "error")
+        flash("E-post och lösenord krävs.", "error")
         return redirect(url_for("auth.login_form"))
 
     user = query(SQL_GET_USER_BY_EMAIL, (email,), one=True)
     if not user or not check_password_hash(user["password_hash"], password):
-        flash("Invalid email or password.", "error")
+        flash("Felaktig e-post eller lösenord.", "error")
         return redirect(url_for("auth.login_form"))
 
     session.clear()
     session["user_id"] = user["id"]
     session["role"] = user["role"]
 
-    flash("Logged in.", "success")
+    flash("Du är nu inloggad.", "success")
     return redirect(url_for("routes.home"))
 
 
@@ -56,13 +56,13 @@ def register():
     password = request.form.get("password", "")
 
     if not full_name or not email or not password:
-        flash("Name, email and password are required.", "error")
+        flash("Namn, e-post och lösenord krävs.", "error")
         return redirect(url_for("auth.register_form"))
 
     existing_customer = query(SQL_GET_CUSTOMER_BY_EMAIL, (email,), one=True)
     if existing_customer:
         flash(
-            "That email already belongs to an existing customer profile. For security, self-registration is blocked for pre-created customer emails. Ask an admin to update or remove that customer email before registering.",
+            "Den e-postadressen tillhör redan en befintlig kundprofil. Av säkerhetsskäl är egen registrering blockerad för e-postadresser som redan finns på en förskapad kund. Be en administratör att uppdatera eller ta bort kundens e-postadress innan du registrerar dig.",
             "error",
         )
         return redirect(url_for("auth.register_form"))
@@ -82,19 +82,19 @@ def register():
         user = tx(work)
 
     except Exception:
-        flash("Registration failed (email may already exist).", "error")
+        flash("Registreringen misslyckades (e-postadressen finns kanske redan).", "error")
         return redirect(url_for("auth.register_form"))
 
     session.clear()
     session["user_id"] = user["id"]
     session["role"] = user["role"]
 
-    flash("Account created.", "success")
+    flash("Kontot är skapat.", "success")
     return redirect(url_for("routes.home"))
 
 
 @bp.get("/logout")
 def logout():
     session.clear()
-    flash("Logged out.", "success")
+    flash("Du är nu utloggad.", "success")
     return redirect(url_for("routes.home"))

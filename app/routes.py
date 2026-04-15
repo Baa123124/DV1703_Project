@@ -164,7 +164,7 @@ def _customer_pending_booking_limit_reached(customer_id: int) -> bool:
 
 def _pending_booking_hold_label() -> str:
     days = current_app.config["PENDING_BOOKING_HOLD_DAYS"]
-    return f"{days} day{'s' if days != 1 else ''}"
+    return f"{days} dag{'ar' if days != 1 else ''}"
 
 
 def _pagination_options(*, default_per_page=DEFAULT_PAGE_SIZE):
@@ -196,24 +196,24 @@ def inject_pagination_helpers():
 
 def _delivery_validation_error_message(code: str) -> str:
     error_map = {
-        "missing_address": "Enter a delivery address.",
-        "address_not_found": "We could not find that address.",
-        "address_too_broad": "Enter a more exact street address.",
-        "address_low_confidence": "We could not verify that address closely enough. Please add more detail.",
+        "missing_address": "Ange en leveransadress.",
+        "address_not_found": "Vi kunde inte hitta den adressen.",
+        "address_too_broad": "Ange en mer exakt gatuadress.",
+        "address_low_confidence": "Vi kunde inte verifiera adressen tillräckligt noggrant. Lägg till mer information.",
     }
-    return error_map.get(code, "We could not validate that delivery address.")
+    return error_map.get(code, "Vi kunde inte validera leveransadressen.")
 
 
 def _delivery_service_error_message(code: str) -> str:
     error_map = {
-        "map_api_not_configured": "Delivery address validation is not configured yet.",
-        "delivery_origin_not_configured": "Delivery origin is not configured yet.",
-        "map_api_connection_error": "We could not reach the map service right now.",
-        "map_api_http_error": "The map service returned an error.",
-        "map_api_invalid_response": "The map service returned invalid data.",
-        "route_not_found": "We could not calculate a delivery route for that address.",
+        "map_api_not_configured": "Validering av leveransadress är inte konfigurerad ännu.",
+        "delivery_origin_not_configured": "Leveransursprunget är inte konfigurerat ännu.",
+        "map_api_connection_error": "Vi kunde inte nå karttjänsten just nu.",
+        "map_api_http_error": "Karttjänsten returnerade ett fel.",
+        "map_api_invalid_response": "Karttjänsten returnerade ogiltiga data.",
+        "route_not_found": "Vi kunde inte beräkna en leveransrutt för den adressen.",
     }
-    return error_map.get(code, "We could not calculate delivery right now.")
+    return error_map.get(code, "Vi kunde inte beräkna leverans just nu.")
 
 
 @bp.before_app_request
@@ -796,19 +796,19 @@ def guest_booking_create():
     start = request.form.get("start_date", "").strip()
     end = request.form.get("end_date", "").strip()
     if not start or not end:
-        flash("Choose dates first.", "error")
+        flash("Välj datum först.", "error")
         return redirect(url_for("routes.home"))
     if end < start:
-        flash("End date cannot be earlier than start date.", "error")
+        flash("Slutdatum kan inte vara tidigare än startdatum.", "error")
         return redirect(url_for("routes.home", start_date=start, end_date=end))
 
     customer = _load_customer_profile_for_user(uid) if uid else None
     if uid and not customer:
-        flash("No customer profile linked to this account.", "error")
+        flash("Det finns ingen kundprofil kopplad till det här kontot.", "error")
         return redirect(url_for("routes.home", start_date=start, end_date=end))
     if customer and _customer_pending_booking_limit_reached(customer["id"]):
         flash(
-            f"You already have the maximum number of active pending bookings. Pending bookings expire after {_pending_booking_hold_label()}.",
+            f"Du har redan maximalt antal aktiva väntande bokningar. Väntande bokningar förfaller efter {_pending_booking_hold_label()}.",
             "error",
         )
         return redirect(url_for("routes.customer_detail", customer_id=customer["id"]))
@@ -818,7 +818,7 @@ def guest_booking_create():
     booking_note = _to_str_or_none(request.form.get("booking_note"))
 
     if include_setup_service and not include_delivery:
-        flash("Setup service requires delivery on the guest booking form.", "error")
+        flash("Montering kräver leverans i bokningsformuläret.", "error")
         return redirect(url_for("routes.home", start_date=start, end_date=end))
 
     account_full_name = request.form.get("full_name", "").strip()
@@ -835,16 +835,16 @@ def guest_booking_create():
         account_address = account_address if account_address is not None else customer["address"]
     else:
         if not account_full_name or not account_email or not account_password:
-            flash("Name, email, and password are required to create an account.", "error")
+            flash("Namn, e-post och lösenord krävs för att skapa ett konto.", "error")
             return redirect(url_for("routes.home", start_date=start, end_date=end))
 
         if query(SQL_GET_USER_BY_EMAIL, (account_email,), one=True):
-            flash("That email address is already registered. Please log in instead.", "error")
+            flash("Den e-postadressen är redan registrerad. Logga in i stället.", "error")
             return redirect(url_for("auth.login_form"))
 
         if query(SQL_GET_CUSTOMER_BY_EMAIL, (account_email,), one=True):
             flash(
-                "That email already belongs to an existing customer profile. Please contact staff to connect it to an account.",
+                "Den e-postadressen tillhör redan en befintlig kundprofil. Kontakta personalen för att koppla den till ett konto.",
                 "error",
             )
             return redirect(url_for("routes.home", start_date=start, end_date=end))
@@ -856,7 +856,7 @@ def guest_booking_create():
     qtys = [qty for _, qty in selections]
 
     if not selections:
-        flash("Select at least one category quantity.", "error")
+        flash("Välj minst en kategori och antal.", "error")
         return redirect(url_for("routes.home", start_date=start, end_date=end))
 
     visible_categories = _query_available_categories(start, end)
@@ -867,29 +867,29 @@ def guest_booking_create():
         allowed_items = category["available_items"] if category else 0
 
         if not category:
-            flash(f"Category {category_id} is no longer available.", "error")
+            flash(f"Kategori {category_id} är inte längre tillgänglig.", "error")
             return redirect(url_for("routes.home", start_date=start, end_date=end))
 
         if allowed_items <= 0:
-            flash(f"{category['display_name']} has no available items.", "error")
+            flash(f"{category['display_name']} har inga tillgängliga artiklar.", "error")
             return redirect(url_for("routes.home", start_date=start, end_date=end))
 
         if requested_qty > allowed_items:
             flash(
-                f'{category["display_name"]} only has {allowed_items} item{"s" if allowed_items != 1 else ""} available for these dates.',
+                f'{category["display_name"]} har bara {allowed_items} tillgänglig{"a artiklar" if allowed_items != 1 else " artikel"} för de här datumen.',
                 "error",
             )
             return redirect(url_for("routes.home", start_date=start, end_date=end))
 
         if not category["has_standard_price"]:
             flash(
-                f"{category['display_name']} has no standard price for the selected dates.",
+                f"{category['display_name']} har inget standardpris för de valda datumen.",
                 "error",
             )
             return redirect(url_for("routes.home", start_date=start, end_date=end))
 
     if include_delivery and not delivery_lookup_address:
-        flash("Enter the delivery address before placing the booking.", "error")
+        flash("Ange leveransadressen innan du skickar bokningen.", "error")
         return redirect(url_for("routes.home", start_date=start, end_date=end))
 
     try:
@@ -977,14 +977,14 @@ def guest_booking_create():
             session["user_id"] = created_user["id"]
             session["role"] = created_user["role"]
 
-        flash(f"Booking created (id={booking_id}).", "success")
+        flash(f"Bokning skapad (id={booking_id}).", "success")
         flash(
-            f"Pending bookings hold stock for {_pending_booking_hold_label()} unless staff confirms them.",
+            f"Väntande bokningar reserverar lagret i {_pending_booking_hold_label()} om inte personalen bekräftar dem tidigare.",
             "success",
         )
         return redirect(url_for("routes.booking_detail", booking_id=booking_id))
     except Exception as exc:
-        flash(f"Could not place booking: {str(exc)}", "error")
+        flash(f"Kunde inte lägga bokningen: {str(exc)}", "error")
         return redirect(url_for("routes.home", start_date=start, end_date=end))
 
 # Booking create
@@ -1261,7 +1261,7 @@ def customers():
 
     cust = query(SQL_GET_CUSTOMER_BY_USER_ID, (uid,), one=True)
     if not cust:
-        flash("No customer profile linked to this account.", "error")
+        flash("Det finns ingen kundprofil kopplad till det här kontot.", "error")
         return redirect(url_for("routes.home"))
 
     return redirect(url_for("routes.customer_detail", customer_id=cust["id"]))
@@ -1821,7 +1821,7 @@ def booking_detail(booking_id: int):
         booking = query(SQL_BOOKING_DETAIL_FOR_CUSTOMER, (booking_id, cust["id"]), one=True)
 
     if not booking:
-        flash("Booking not found.", "error")
+        flash("Bokningen hittades inte.", "error")
         return redirect(url_for("routes.home"))
 
     items = query(SQL_BOOKING_ITEMS, (booking_id,))

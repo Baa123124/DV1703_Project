@@ -52,7 +52,7 @@
           </div>
         </div>
 
-        <form method="get" class="mt-5 grid gap-4 md:grid-cols-2" id="availability-search-form">
+        <form method="get" class="mt-5 grid gap-4 md:grid-cols-2" id="availability-search-form" data-date-range>
           <div>
             <label class="text-sm font-medium text-slate-700" for="start_date">Start date</label>
             <input
@@ -61,6 +61,7 @@
               name="start_date"
               value="{{ start_date }}"
               required
+              data-date-range-start
               class="mt-1 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 shadow-sm transition focus:border-sky-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-sky-100"
             >
           </div>
@@ -73,6 +74,7 @@
               name="end_date"
               value="{{ end_date }}"
               required
+              data-date-range-end
               class="mt-1 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 shadow-sm transition focus:border-sky-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-sky-100"
             >
           </div>
@@ -845,31 +847,6 @@
   {% endif %}
 
   <script>
-    (() => {
-      const startInput = document.getElementById("start_date");
-      const endInput = document.getElementById("end_date");
-
-      if (!startInput || !endInput) {
-        return;
-      }
-
-      const syncEndDate = () => {
-        if (!startInput.value) {
-          return;
-        }
-
-        endInput.min = startInput.value;
-
-        if (!endInput.value || endInput.value < startInput.value) {
-          endInput.value = startInput.value;
-        }
-      };
-
-      startInput.addEventListener("change", syncEndDate);
-      startInput.addEventListener("input", syncEndDate);
-      syncEndDate();
-    })();
-
     (() => {
       const mobileQuery = window.matchMedia("(max-width: 767px)");
       const groups = document.querySelectorAll("[data-booking-input-set]");

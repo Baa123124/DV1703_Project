@@ -140,35 +140,37 @@
     <div class="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
       <div>
         <div class="inline-flex items-center gap-2 rounded-full border border-pink-200 bg-white/90 px-3 py-1 text-xs font-medium uppercase tracking-[0.2em] text-rose-500">
-          Customer Profile
+          Kundprofil
         </div>
         <h1 class="mt-4 text-3xl font-black tracking-tight text-slate-950 md:text-5xl">{{ customer.full_name }}</h1>
         <p class="mt-3 max-w-2xl text-sm leading-6 text-slate-700 md:text-base">
-          Your booking history, contact details, and delivery context live here.
+          Här hittar du din bokningshistorik, dina kontaktuppgifter och leveransinformation.
         </p>
       </div>
       <div class="rounded-[1.75rem] border border-pink-100 bg-white/90 px-5 py-4 shadow-sm">
-          <div class="text-xs font-medium uppercase tracking-[0.18em] text-emerald-600">Customer since</div>
-          <div class="mt-2 text-sm font-semibold text-slate-900">{{ customer.created_at }}</div>
+          <div class="text-xs font-medium uppercase tracking-[0.18em] text-emerald-600">Kund sedan</div>
+          <div class="mt-2 text-sm font-semibold text-slate-900">
+            {{ customer.created_at.strftime('%Y-%m-%d') if customer.created_at.strftime is defined else customer.created_at[:10] }}
+          </div>
       </div>
     </div>
 
     <div class="mt-6 grid gap-3 md:grid-cols-3">
       <div class="rounded-2xl border border-slate-200 bg-white/90 p-4">
-        <div class="text-xs font-medium uppercase tracking-[0.18em] text-emerald-600">Email</div>
-        <div class="mt-2 text-sm font-semibold text-slate-900">{{ customer.email or "No email" }}</div>
+        <div class="text-xs font-medium uppercase tracking-[0.18em] text-emerald-600">E-post</div>
+        <div class="mt-2 text-sm font-semibold text-slate-900">{{ customer.email or "Ingen e-post" }}</div>
       </div>
       <div class="rounded-2xl border border-slate-200 bg-white/90 p-4">
-        <div class="text-xs font-medium uppercase tracking-[0.18em] text-emerald-600">Phone</div>
-        <div class="mt-2 text-sm font-semibold text-slate-900">{{ customer.phone or "No phone" }}</div>
+        <div class="text-xs font-medium uppercase tracking-[0.18em] text-emerald-600">Telefon</div>
+        <div class="mt-2 text-sm font-semibold text-slate-900">{{ customer.phone or "Inget telefonnummer" }}</div>
       </div>
       <div class="rounded-2xl border border-pink-100 bg-white/90 p-4">
-        <div class="text-xs font-medium uppercase tracking-[0.18em] text-emerald-600">Address</div>
+        <div class="text-xs font-medium uppercase tracking-[0.18em] text-emerald-600">Adress</div>
         <div class="mt-2 text-sm font-semibold text-slate-900">
           {% if customer.address or customer.postal_city %}
             {{ customer.address or "" }}{% if customer.address and customer.postal_city %}, {% endif %}{{ customer.postal_city or "" }}
           {% else %}
-            No address
+            Ingen adress
           {% endif %}
         </div>
       </div>
@@ -180,11 +182,11 @@
   <div class="border-b border-pink-100 bg-[linear-gradient(180deg,rgba(253,242,248,0.55),rgba(255,255,255,0.96))] px-6 py-5 md:px-8">
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div>
-        <div class="text-xs font-medium uppercase tracking-[0.2em] text-rose-400">Bookings</div>
-        <h2 class="mt-1 text-2xl font-black text-slate-950">Your bookings</h2>
+        <div class="text-xs font-medium uppercase tracking-[0.2em] text-rose-400">Bokningar</div>
+        <h2 class="mt-1 text-2xl font-black text-slate-950">Dina bokningar</h2>
       </div>
       <div class="rounded-full border border-emerald-200 bg-white px-4 py-2 text-sm font-medium text-slate-700">
-        {{ bookings_page.total_items }} total
+        {{ bookings_page.total_items }} totalt
       </div>
     </div>
   </div>
@@ -196,23 +198,23 @@
           <a href="{{ url_for('routes.booking_detail', booking_id=b.id) }}" class="rounded-[1.5rem] border border-slate-200 bg-[linear-gradient(180deg,#fffdfd_0%,#ffffff_100%)] p-4 shadow-[0_18px_45px_-36px_rgba(15,23,42,0.12)] transition hover:border-pink-200">
             <div class="flex items-start justify-between gap-3">
               <div>
-                <div class="text-sm font-bold text-rose-600">Booking #{{ b.id }}</div>
+                <div class="text-sm font-bold text-rose-600">Bokning #{{ b.id }}</div>
                 <div class="mt-1 text-sm text-slate-600">{{ b.start_date }} - {{ b.end_date }}</div>
               </div>
               {% if b.status == 'confirmed' %}
-                <span class="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">Confirmed</span>
+                <span class="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">Bekräftad</span>
               {% elif b.status == 'pending' %}
-                <span class="inline-flex rounded-full border border-pink-200 bg-pink-50 px-2.5 py-1 text-xs font-medium text-rose-500">Pending</span>
+                <span class="inline-flex rounded-full border border-pink-200 bg-pink-50 px-2.5 py-1 text-xs font-medium text-rose-500">Väntande</span>
               {% else %}
-                <span class="inline-flex rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-medium text-rose-700">Cancelled</span>
+                <span class="inline-flex rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-medium text-rose-700">Avbokad</span>
               {% endif %}
             </div>
             <div class="mt-3 flex flex-wrap gap-2 text-xs">
-              {% if b.include_setup_service %}<span class="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 font-medium text-emerald-700">Setup</span>{% endif %}
-              {% if b.include_delivery %}<span class="inline-flex rounded-full border border-pink-200 bg-pink-50 px-3 py-1 font-medium text-rose-500">Delivery</span>{% endif %}
-              {% if b.booking_note %}<span class="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 font-medium text-slate-600">Booking note</span>{% endif %}
+              {% if b.include_setup_service %}<span class="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 font-medium text-emerald-700">Montering</span>{% endif %}
+              {% if b.include_delivery %}<span class="inline-flex rounded-full border border-pink-200 bg-pink-50 px-3 py-1 font-medium text-rose-500">Leverans</span>{% endif %}
+              {% if b.booking_note %}<span class="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 font-medium text-slate-600">Bokningsanteckning</span>{% endif %}
               {% if not b.include_setup_service and not b.include_delivery and not b.booking_note %}
-                <span class="text-slate-400">No extras</span>
+                <span class="text-slate-400">Inga tillval</span>
               {% endif %}
             </div>
           </a>
@@ -225,10 +227,10 @@
             <thead class="bg-[linear-gradient(90deg,#ec4899_0%,#f472b6_72%,#22c55e_140%)] text-white">
               <tr>
                 <th class="p-3 text-left font-medium" data-sort-type="number">ID</th>
-                <th class="p-3 text-left font-medium" data-sort-type="date">Dates</th>
+                <th class="p-3 text-left font-medium" data-sort-type="date">Datum</th>
                 <th class="p-3 text-left font-medium">Status</th>
-                <th class="p-3 text-left font-medium">Options</th>
-                <th class="p-3 text-left font-medium" data-sort-type="date">Created</th>
+                <th class="p-3 text-left font-medium">Tillval</th>
+                <th class="p-3 text-left font-medium" data-sort-type="date">Skapad</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-slate-200 bg-white">
@@ -245,21 +247,21 @@
                   <td class="p-3" data-sort-value="{{ b.status }}">
                     <a class="block w-full h-full" href="{{ url_for('routes.booking_detail', booking_id=b.id) }}">
                       {% if b.status == 'confirmed' %}
-                        <span class="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">Confirmed</span>
+                        <span class="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">Bekräftad</span>
                       {% elif b.status == 'pending' %}
-                        <span class="inline-flex rounded-full border border-pink-200 bg-pink-50 px-2.5 py-1 text-xs font-medium text-rose-500">Pending</span>
+                        <span class="inline-flex rounded-full border border-pink-200 bg-pink-50 px-2.5 py-1 text-xs font-medium text-rose-500">Väntande</span>
                       {% else %}
-                        <span class="inline-flex rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-medium text-rose-700">Cancelled</span>
+                        <span class="inline-flex rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-medium text-rose-700">Avbokad</span>
                       {% endif %}
                     </a>
                   </td>
                   <td class="p-3 text-xs text-slate-600">
                     <a class="block w-full h-full space-y-1" href="{{ url_for('routes.booking_detail', booking_id=b.id) }}">
-                      {% if b.include_setup_service %}<div>Setup included</div>{% endif %}
-                      {% if b.include_delivery %}<div>Delivery included{% if b.delivery_fee is not none %} ({{ b.delivery_fee }} kr){% endif %}</div>{% endif %}
-                      {% if b.booking_note %}<div class="text-slate-500">Has booking note</div>{% endif %}
+                      {% if b.include_setup_service %}<div>Montering ingår</div>{% endif %}
+                      {% if b.include_delivery %}<div>Leverans ingår{% if b.delivery_fee is not none %} ({{ b.delivery_fee }} kr){% endif %}</div>{% endif %}
+                      {% if b.booking_note %}<div class="text-slate-500">Har bokningsanteckning</div>{% endif %}
                       {% if not b.include_setup_service and not b.include_delivery and not b.booking_note %}
-                        <span class="text-slate-400">No extras</span>
+                        <span class="text-slate-400">Inga tillval</span>
                       {% endif %}
                     </a>
                   </td>
@@ -273,7 +275,7 @@
         </div>
       </div>
     {% else %}
-      <div class="rounded-2xl border border-emerald-100 bg-emerald-50/40 px-4 py-4 text-sm text-slate-600"><i>No bookings yet.</i></div>
+      <div class="rounded-2xl border border-emerald-100 bg-emerald-50/40 px-4 py-4 text-sm text-slate-600"><i>Inga bokningar ännu.</i></div>
     {% endif %}
 
     {% with page_obj=bookings_page %}

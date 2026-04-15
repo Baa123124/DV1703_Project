@@ -1,8 +1,13 @@
 {% if page_obj and page_obj.total_items > 0 %}
   <div class="mt-6 flex flex-col gap-4 rounded-[1.5rem] px-4 py-4 md:flex-row md:items-center md:justify-between {% if role == 'admin' %}border border-slate-200 bg-slate-50{% else %}border border-slate-200 bg-white shadow-[0_18px_40px_-32px_rgba(15,23,42,0.1)]{% endif %}">
     <div class="text-sm text-slate-600">
-      Showing <span class="font-medium text-slate-900">{{ page_obj.start_index }}-{{ page_obj.end_index }}</span>
-      of <span class="font-medium text-slate-900">{{ page_obj.total_items }}</span>
+      {% if role == 'admin' %}
+        Showing <span class="font-medium text-slate-900">{{ page_obj.start_index }}-{{ page_obj.end_index }}</span>
+        of <span class="font-medium text-slate-900">{{ page_obj.total_items }}</span>
+      {% else %}
+        Visar <span class="font-medium text-slate-900">{{ page_obj.start_index }}-{{ page_obj.end_index }}</span>
+        av <span class="font-medium text-slate-900">{{ page_obj.total_items }}</span>
+      {% endif %}
     </div>
 
     <div class="flex flex-col gap-3 md:flex-row md:items-center">
@@ -13,7 +18,7 @@
           {% endif %}
         {% endfor %}
         <input type="hidden" name="page" value="1">
-        <label class="font-medium text-slate-700" for="per-page-select">Rows</label>
+        <label class="font-medium text-slate-700" for="per-page-select">{% if role == 'admin' %}Rows{% else %}Rader{% endif %}</label>
         <select
           id="per-page-select"
           name="per_page"
@@ -27,17 +32,17 @@
       </form>
 
       {% if page_obj.total_pages > 1 %}
-        <nav class="flex flex-wrap items-center gap-2" aria-label="Pagination">
+        <nav class="flex flex-wrap items-center gap-2" aria-label="{% if role == 'admin' %}Pagination{% else %}Sidnumrering{% endif %}">
           {% if page_obj.has_prev %}
             <a
               class="inline-flex items-center justify-center rounded-xl border bg-white px-3 py-2 text-sm font-medium text-slate-700 transition {% if role == 'admin' %}border-slate-300 hover:border-sky-300 hover:text-sky-700{% else %}border-slate-300 hover:border-pink-300 hover:text-rose-600{% endif %}"
               href="{{ pagination_url(page=page_obj.prev_page) }}"
             >
-              Previous
+              {% if role == 'admin' %}Previous{% else %}Föregående{% endif %}
             </a>
           {% else %}
             <span class="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-slate-100 px-3 py-2 text-sm font-medium text-slate-400">
-              Previous
+              {% if role == 'admin' %}Previous{% else %}Föregående{% endif %}
             </span>
           {% endif %}
 
@@ -65,11 +70,11 @@
               class="inline-flex items-center justify-center rounded-xl border bg-white px-3 py-2 text-sm font-medium text-slate-700 transition {% if role == 'admin' %}border-slate-300 hover:border-sky-300 hover:text-sky-700{% else %}border-slate-300 hover:border-pink-300 hover:text-rose-600{% endif %}"
               href="{{ pagination_url(page=page_obj.next_page) }}"
             >
-              Next
+              {% if role == 'admin' %}Next{% else %}Nästa{% endif %}
             </a>
           {% else %}
             <span class="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-slate-100 px-3 py-2 text-sm font-medium text-slate-400">
-              Next
+              {% if role == 'admin' %}Next{% else %}Nästa{% endif %}
             </span>
           {% endif %}
         </nav>
